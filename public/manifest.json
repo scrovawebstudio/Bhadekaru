@@ -1,0 +1,39 @@
+{
+  "name": "Bhadekaru — Property & Tenant Management",
+  "short_name": "Bhadekaru",
+  "description": "Manage your rental properties, units, tenants, rent payments, agreements, and expenses.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0284c7",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Record Payment",
+      "url": "/payments?action=record",
+      "description": "Record a tenant rent payment"
+    },
+    {
+      "name": "Add Tenant",
+      "url": "/tenants?action=new",
+      "description": "Add a new tenant"
+    },
+    {
+      "name": "Properties",
+      "url": "/properties",
+      "description": "View all properties"
+    }
+  ]
+}
