@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentService } from '../../services/documentService';
 import { propertyService } from '../../services/propertyService';
 import { tenantService } from '../../services/tenantService';
-import { FolderOpen, Plus, Search, FileText, Download, ShieldCheck, Eye } from 'lucide-react';
+import { googleDriveService, DriveSyncStatus } from '../../services/googleDriveService';
+import { GoogleDriveModal } from '../../components/drive/GoogleDriveModal';
+import { FolderOpen, Plus, Search, FileText, Download, ShieldCheck, Eye, Cloud, CloudCheck, ExternalLink } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
@@ -100,8 +102,16 @@ export const DocumentsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [showDriveModal, setShowDriveModal] = useState(false);
+  const [driveStatus, setDriveStatus] = useState<DriveSyncStatus>(googleDriveService.getStatus());
   const queryClient = useQueryClient();
   const toast = useToast();
+
+  useEffect(() => {
+    return googleDriveService.subscribe((s) => {
+      setDriveStatus(s);
+    });
+  }, []);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ['documents'],
@@ -126,16 +136,32 @@ export const DocumentsPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">
-            Document Vault & KYC Archive
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">
+              Document Vault & KYC Archive
+            </h1>
+            <Badge variant={driveStatus.isConnected ? 'success' : 'neutral'} className="text-[10px]">
+              {driveStatus.isConnected ? 'Drive Synced' : 'Local Storage'}
+            </Badge>
+          </div>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
             Encrypted storage for tenant Aadhaar, PAN, police verification, property taxes, and lease copies.
           </p>
         </div>
-        <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setUploadModalOpen(true)}>
-          Upload Document
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            leftIcon={driveStatus.isConnected ? <CloudCheck className="w-4 h-4 text-emerald-600" /> : <Cloud className="w-4 h-4 text-sky-600" />}
+            onClick={() => setShowDriveModal(true)}
+            className="text-xs"
+          >
+            {driveStatus.isConnected ? 'Drive Synced' : 'Connect Google Drive'}
+          </Button>
+
+          <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />} onClick={() => setUploadModalOpen(true)}>
+            Upload Document
+          </Button>
+        </div>
       </div>
 
       {/* Filters Bar */}
@@ -208,6 +234,9 @@ export const DocumentsPage: React.FC = () => {
           await uploadMutation.mutateAsync(data);
         }}
       />
+
+      {/* Google Drive Synchronization Modal */}
+      <GoogleDriveModal isOpen={showDriveModal} onClose={() => setShowDriveModal(false)} />
     </div>
   );
 };

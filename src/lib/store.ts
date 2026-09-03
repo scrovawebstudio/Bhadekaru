@@ -17,10 +17,15 @@ import {
   AppNotification,
   SubscriptionPlan,
   Subscription,
-  AuditLog
+  AuditLog,
+  LandlordAccount,
+  PlatformMetrics,
+  BillingEvent,
+  PlanTier,
+  SubscriptionStatus
 } from '../types/database.types';
 
-const STORAGE_KEY = 'bhadekaru_db_state_v1';
+const STORAGE_KEY = 'bhadekaru_db_state_v2';
 
 // Seed Initial Data
 const SEED_PROFILE: Profile = {
@@ -50,19 +55,19 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'plan-free',
     tier: 'free',
-    name: 'Free',
+    name: 'Free Starter',
     monthly_price_inr: 0,
     annual_price_inr: 0,
-    max_active_units: 1,
+    max_active_units: 2,
     max_properties: 1,
     max_members: 1,
-    features: ['1 Active Unit', 'Rent & Payment Tracking', 'Basic Reminders', 'Standard Dashboard'],
+    features: ['2 Active Rental Units', 'Rent & Payment Tracking', 'Basic Reminders', 'Standard Dashboard'],
     is_active: true,
   },
   {
     id: 'plan-starter',
     tier: 'starter',
-    name: 'Starter',
+    name: 'Landlord Starter',
     monthly_price_inr: 99,
     annual_price_inr: 999,
     max_active_units: 5,
@@ -74,7 +79,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'plan-growth',
     tier: 'growth',
-    name: 'Growth',
+    name: 'Portfolio Growth',
     monthly_price_inr: 249,
     annual_price_inr: 2490,
     max_active_units: 20,
@@ -86,7 +91,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'plan-pro',
     tier: 'professional',
-    name: 'Professional',
+    name: 'Real Estate Pro',
     monthly_price_inr: 499,
     annual_price_inr: 4990,
     max_active_units: 50,
@@ -94,6 +99,262 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     max_members: 5,
     features: ['Up to 50 Active Units', 'Everything in Growth', 'Multiple Property Managers', 'Advanced Profitability Analytics', 'Priority Support', 'Full Audit Logs'],
     is_active: true,
+  },
+  {
+    id: 'plan-enterprise',
+    tier: 'enterprise',
+    name: 'Enterprise / Co-Living',
+    monthly_price_inr: 1499,
+    annual_price_inr: 14990,
+    max_active_units: 200,
+    max_properties: 100,
+    max_members: 20,
+    features: ['Up to 200 Units', 'Dedicated Account Manager', 'Custom API Integration', 'Multi-city Tax Support', 'Full Tenant Portal'],
+    is_active: true,
+  },
+];
+
+export const SEED_LANDLORD_ACCOUNTS: LandlordAccount[] = [
+  {
+    id: 'org-2001',
+    organization_name: 'Patil Real Estate & Rentals',
+    owner_id: 'usr-1001',
+    owner_name: 'Rajesh Patil',
+    owner_email: 'landlord@bhadekaru.app',
+    owner_phone: '+91 98230 45678',
+    city: 'Pune',
+    state: 'Maharashtra',
+    plan_tier: 'professional',
+    plan_name: 'Real Estate Pro',
+    status: 'trialing',
+    is_suspended: false,
+    trial_start: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    trial_end: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    current_period_end: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    billing_cycle: 'monthly',
+    max_units_allowed: 50,
+    mrr_inr: 499,
+    auto_renew: true,
+    stats: {
+      properties_count: 2,
+      units_count: 5,
+      occupied_units_count: 4,
+      tenants_count: 4,
+      monthly_collection_inr: 97000,
+    },
+    created_at: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'org-2002',
+    organization_name: 'Sharma Homes & Residency',
+    owner_id: 'usr-1002',
+    owner_name: 'Vikram Sharma',
+    owner_email: 'vikram.sharma@sharmahomes.in',
+    owner_phone: '+91 98450 11223',
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    plan_tier: 'growth',
+    plan_name: 'Portfolio Growth',
+    status: 'active',
+    is_suspended: false,
+    trial_start: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(),
+    trial_end: new Date(Date.now() - 113 * 24 * 60 * 60 * 1000).toISOString(),
+    current_period_end: new Date(Date.now() + 22 * 24 * 60 * 60 * 1000).toISOString(),
+    billing_cycle: 'annual',
+    max_units_allowed: 20,
+    mrr_inr: 208, // 2490 / 12
+    auto_renew: true,
+    stats: {
+      properties_count: 3,
+      units_count: 14,
+      occupied_units_count: 12,
+      tenants_count: 12,
+      monthly_collection_inr: 285000,
+    },
+    created_at: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'org-2003',
+    organization_name: 'Deshmukh Commercial Hubs',
+    owner_id: 'usr-1003',
+    owner_name: 'Sunil Deshmukh',
+    owner_email: 'sunil@deshmukhproperties.com',
+    owner_phone: '+91 98200 99887',
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    plan_tier: 'professional',
+    plan_name: 'Real Estate Pro',
+    status: 'active',
+    is_suspended: false,
+    trial_start: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(),
+    trial_end: new Date(Date.now() - 173 * 24 * 60 * 60 * 1000).toISOString(),
+    current_period_end: new Date(Date.now() + 18 * 24 * 60 * 60 * 1000).toISOString(),
+    billing_cycle: 'monthly',
+    max_units_allowed: 50,
+    mrr_inr: 499,
+    auto_renew: true,
+    stats: {
+      properties_count: 5,
+      units_count: 28,
+      occupied_units_count: 25,
+      tenants_count: 25,
+      monthly_collection_inr: 740000,
+    },
+    created_at: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'org-2004',
+    organization_name: 'Apex Student PG & Co-Living',
+    owner_id: 'usr-1004',
+    owner_name: 'Neha Agarwal',
+    owner_email: 'neha@apexcoliving.in',
+    owner_phone: '+91 98110 55443',
+    city: 'New Delhi',
+    state: 'Delhi NCR',
+    plan_tier: 'enterprise',
+    plan_name: 'Enterprise / Co-Living',
+    status: 'active',
+    is_suspended: false,
+    trial_start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+    trial_end: new Date(Date.now() - 83 * 24 * 60 * 60 * 1000).toISOString(),
+    current_period_end: new Date(Date.now() + 27 * 24 * 60 * 60 * 1000).toISOString(),
+    billing_cycle: 'annual',
+    max_units_allowed: 200,
+    custom_unit_limit: 200,
+    mrr_inr: 1249,
+    auto_renew: true,
+    stats: {
+      properties_count: 4,
+      units_count: 64,
+      occupied_units_count: 61,
+      tenants_count: 61,
+      monthly_collection_inr: 915000,
+    },
+    created_at: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'org-2005',
+    organization_name: 'Kulkarni Flatlets',
+    owner_id: 'usr-1005',
+    owner_name: 'Ramesh Kulkarni',
+    owner_email: 'ramesh.kulkarni@gmail.com',
+    owner_phone: '+91 98221 33445',
+    city: 'Nashik',
+    state: 'Maharashtra',
+    plan_tier: 'free',
+    plan_name: 'Free Starter',
+    status: 'active',
+    is_suspended: false,
+    trial_start: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000).toISOString(),
+    trial_end: new Date(Date.now() - 193 * 24 * 60 * 60 * 1000).toISOString(),
+    current_period_end: '2099-12-31T00:00:00.000Z',
+    billing_cycle: 'monthly',
+    max_units_allowed: 2,
+    mrr_inr: 0,
+    auto_renew: false,
+    stats: {
+      properties_count: 1,
+      units_count: 2,
+      occupied_units_count: 2,
+      tenants_count: 2,
+      monthly_collection_inr: 28000,
+    },
+    created_at: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'org-2006',
+    organization_name: 'Heritage Estates & Villas',
+    owner_id: 'usr-1006',
+    owner_name: 'Anand Verma',
+    owner_email: 'anand@heritagevillas.in',
+    owner_phone: '+91 98900 12345',
+    city: 'Nagpur',
+    state: 'Maharashtra',
+    plan_tier: 'starter',
+    plan_name: 'Landlord Starter',
+    status: 'suspended',
+    is_suspended: true,
+    suspension_reason: 'Recurring subscription mandate failed 3 times. Account suspended by Super Admin pending dues clearance.',
+    trial_start: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString(),
+    trial_end: new Date(Date.now() - 143 * 24 * 60 * 60 * 1000).toISOString(),
+    current_period_end: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+    billing_cycle: 'monthly',
+    max_units_allowed: 5,
+    mrr_inr: 99,
+    auto_renew: false,
+    stats: {
+      properties_count: 2,
+      units_count: 8,
+      occupied_units_count: 6,
+      tenants_count: 6,
+      monthly_collection_inr: 110000,
+    },
+    created_at: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
+export const SEED_BILLING_EVENTS: BillingEvent[] = [
+  {
+    id: 'bil-1',
+    organization_id: 'org-2003',
+    organization_name: 'Deshmukh Commercial Hubs',
+    owner_name: 'Sunil Deshmukh',
+    amount_inr: 499,
+    plan_name: 'Real Estate Pro',
+    billing_cycle: 'monthly',
+    payment_method: 'upi',
+    status: 'succeeded',
+    invoice_number: 'INV-BHAD-2026-0891',
+    transaction_ref: 'razorpay_pay_N9812A8901',
+    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'bil-2',
+    organization_id: 'org-2004',
+    organization_name: 'Apex Student PG & Co-Living',
+    owner_name: 'Neha Agarwal',
+    amount_inr: 14990,
+    plan_name: 'Enterprise / Co-Living (Annual)',
+    billing_cycle: 'annual',
+    payment_method: 'netbanking',
+    status: 'succeeded',
+    invoice_number: 'INV-BHAD-2026-0842',
+    transaction_ref: 'razorpay_pay_M7718B2209',
+    created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'bil-3',
+    organization_id: 'org-2002',
+    organization_name: 'Sharma Homes & Residency',
+    owner_name: 'Vikram Sharma',
+    amount_inr: 2490,
+    plan_name: 'Portfolio Growth (Annual)',
+    billing_cycle: 'annual',
+    payment_method: 'credit_card',
+    status: 'succeeded',
+    invoice_number: 'INV-BHAD-2026-0780',
+    transaction_ref: 'razorpay_pay_K4402C9911',
+    created_at: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'bil-4',
+    organization_id: 'org-2006',
+    organization_name: 'Heritage Estates & Villas',
+    owner_name: 'Anand Verma',
+    amount_inr: 99,
+    plan_name: 'Landlord Starter',
+    billing_cycle: 'monthly',
+    payment_method: 'upi',
+    status: 'failed',
+    invoice_number: 'INV-BHAD-2026-0715',
+    transaction_ref: 'razorpay_pay_F1109D4433',
+    created_at: new Date(Date.now() - 16 * 24 * 60 * 60 * 1000).toISOString(),
   },
 ];
 
@@ -1023,6 +1284,11 @@ const SEED_AUDIT_LOGS: AuditLog[] = [
 ];
 
 export interface DBState {
+  currentRole: 'super_admin' | 'landlord';
+  currentOrgId: string;
+  landlordAccounts: LandlordAccount[];
+  billingEvents: BillingEvent[];
+  subscriptionPlans: SubscriptionPlan[];
   profile: Profile;
   organization: Organization;
   subscription: Subscription;
@@ -1054,13 +1320,21 @@ class LocalDBStore {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed.landlordAccounts && parsed.currentRole) {
+          return parsed;
+        }
       }
     } catch {
       // Fallback
     }
 
     const defaultState: DBState = {
+      currentRole: 'landlord',
+      currentOrgId: 'org-2001',
+      landlordAccounts: SEED_LANDLORD_ACCOUNTS,
+      billingEvents: SEED_BILLING_EVENTS,
+      subscriptionPlans: SUBSCRIPTION_PLANS,
       profile: SEED_PROFILE,
       organization: SEED_ORG,
       subscription: SEED_SUBSCRIPTION,
@@ -1114,6 +1388,319 @@ class LocalDBStore {
 
   public exportAllData(): DBState {
     return this.state;
+  }
+
+  // --- Role & Multi-Tenant Switching ---
+  public switchRole(role: 'super_admin' | 'landlord'): void {
+    this.updateState((s) => ({
+      ...s,
+      currentRole: role,
+    }));
+  }
+
+  public switchOrganization(orgId: string): LandlordAccount | undefined {
+    const target = this.state.landlordAccounts.find((a) => a.id === orgId);
+    if (!target) return undefined;
+
+    this.updateState((s) => ({
+      ...s,
+      currentOrgId: orgId,
+      currentRole: 'landlord',
+      organization: {
+        ...s.organization,
+        id: target.id,
+        name: target.organization_name,
+        owner_id: target.owner_id,
+      },
+      profile: {
+        ...s.profile,
+        id: target.owner_id,
+        full_name: target.owner_name,
+        email: target.owner_email,
+        phone: target.owner_phone,
+      },
+    }));
+
+    return target;
+  }
+
+  public findAccountByEmail(email: string): LandlordAccount | undefined {
+    const clean = email.trim().toLowerCase();
+    return this.state.landlordAccounts.find((a) => a.owner_email.toLowerCase() === clean);
+  }
+
+  public registerLandlordAccount(params: {
+    fullName: string;
+    email: string;
+    phone: string;
+    organizationName?: string;
+    city?: string;
+    planTier?: PlanTier;
+  }): LandlordAccount {
+    const orgId = `org-${Date.now()}`;
+    const userId = `usr-${Date.now()}`;
+    const planTier: PlanTier = params.planTier || 'professional';
+    const plan = this.state.subscriptionPlans.find((p) => p.tier === planTier) || this.state.subscriptionPlans[3];
+    const orgName = params.organizationName || `${params.fullName}'s Portfolio`;
+    const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const newAccount: LandlordAccount = {
+      id: orgId,
+      organization_name: orgName,
+      owner_id: userId,
+      owner_name: params.fullName,
+      owner_email: params.email,
+      owner_phone: params.phone,
+      city: params.city || 'Pune',
+      state: 'Maharashtra',
+      plan_tier: planTier,
+      plan_name: plan.name,
+      billing_cycle: 'monthly',
+      status: 'trialing',
+      trial_start: new Date().toISOString(),
+      trial_end: trialEnd,
+      current_period_end: trialEnd,
+      max_units_allowed: plan.max_active_units,
+      mrr_inr: plan.monthly_price_inr,
+      is_suspended: false,
+      auto_renew: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      stats: {
+        properties_count: 0,
+        units_count: 0,
+        occupied_units_count: 0,
+        tenants_count: 0,
+        monthly_collection_inr: 0,
+      },
+    };
+
+    this.updateState((s) => ({
+      ...s,
+      currentOrgId: orgId,
+      landlordAccounts: [newAccount, ...s.landlordAccounts],
+      organization: {
+        id: orgId,
+        name: orgName,
+        owner_id: userId,
+        currency: 'INR',
+        timezone: 'Asia/Kolkata',
+        onboarding_completed: false,
+        onboarding_units_managed: '1–5',
+        onboarding_property_types: ['Flats'],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      profile: {
+        id: userId,
+        full_name: params.fullName,
+        email: params.email,
+        phone: params.phone,
+        avatar_url: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      subscription: {
+        id: `sub-${Date.now()}`,
+        organization_id: orgId,
+        plan_id: plan.id,
+        status: 'trialing',
+        trial_start: new Date().toISOString(),
+        trial_end: trialEnd,
+        current_period_start: new Date().toISOString(),
+        current_period_end: trialEnd,
+        cancel_at_period_end: false,
+        payment_provider: 'razorpay_ready',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    }));
+
+    return newAccount;
+  }
+
+  // --- Super Admin Account Management ---
+  public getLandlordAccounts(): LandlordAccount[] {
+    return this.state.landlordAccounts;
+  }
+
+  public getLandlordAccountById(id: string): LandlordAccount | undefined {
+    return this.state.landlordAccounts.find((a) => a.id === id);
+  }
+
+  public updateLandlordSubscription(
+    id: string,
+    updates: Partial<LandlordAccount>
+  ): LandlordAccount {
+    let updatedAcc: LandlordAccount | undefined;
+    this.updateState((s) => {
+      const list = s.landlordAccounts.map((acc) => {
+        if (acc.id === id) {
+          const plan = s.subscriptionPlans.find((p) => p.tier === (updates.plan_tier || acc.plan_tier));
+          const maxUnits = updates.custom_unit_limit || updates.max_units_allowed || plan?.max_active_units || acc.max_units_allowed;
+          const planName = plan?.name || acc.plan_name;
+          const mrr = plan ? (acc.billing_cycle === 'annual' ? Math.round(plan.annual_price_inr / 12) : plan.monthly_price_inr) : acc.mrr_inr;
+
+          updatedAcc = {
+            ...acc,
+            ...updates,
+            plan_name: planName,
+            max_units_allowed: maxUnits,
+            mrr_inr: mrr,
+            updated_at: new Date().toISOString(),
+          };
+          return updatedAcc;
+        }
+        return acc;
+      });
+
+      // If updating current active org, sync subscription state
+      let updatedSub = s.subscription;
+      if (id === s.currentOrgId && updatedAcc) {
+        updatedSub = {
+          ...s.subscription,
+          status: updatedAcc.status,
+          trial_end: updatedAcc.trial_end,
+          current_period_end: updatedAcc.current_period_end,
+        };
+      }
+
+      return {
+        ...s,
+        landlordAccounts: list,
+        subscription: updatedSub,
+      };
+    });
+
+    return updatedAcc!;
+  }
+
+  public suspendLandlord(id: string, reason: string): LandlordAccount {
+    return this.updateLandlordSubscription(id, {
+      status: 'suspended',
+      is_suspended: true,
+      suspension_reason: reason || 'Account suspended by Super Admin.',
+    });
+  }
+
+  public reactivateLandlord(id: string): LandlordAccount {
+    return this.updateLandlordSubscription(id, {
+      status: 'active',
+      is_suspended: false,
+      suspension_reason: undefined,
+    });
+  }
+
+  public extendTrial(id: string, daysToAdd: number = 7): LandlordAccount {
+    const acc = this.getLandlordAccountById(id);
+    if (!acc) throw new Error('Landlord account not found');
+    const currentTrialEnd = new Date(acc.trial_end).getTime() > Date.now() ? new Date(acc.trial_end) : new Date();
+    const newTrialEnd = new Date(currentTrialEnd.getTime() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
+
+    return this.updateLandlordSubscription(id, {
+      status: 'trialing',
+      trial_end: newTrialEnd,
+      current_period_end: newTrialEnd,
+      is_suspended: false,
+    });
+  }
+
+  public changeLandlordPlan(id: string, tier: PlanTier): LandlordAccount {
+    const plan = this.state.subscriptionPlans.find((p) => p.tier === tier);
+    if (!plan) throw new Error(`Plan tier ${tier} not found`);
+
+    return this.updateLandlordSubscription(id, {
+      plan_tier: tier,
+      plan_name: plan.name,
+      max_units_allowed: plan.max_active_units,
+      mrr_inr: plan.monthly_price_inr,
+      status: 'active',
+    });
+  }
+
+  public overrideUnitLimit(id: string, customLimit: number): LandlordAccount {
+    return this.updateLandlordSubscription(id, {
+      custom_unit_limit: customLimit,
+      max_units_allowed: customLimit,
+    });
+  }
+
+  public getPlatformMetrics(): PlatformMetrics {
+    const list = this.state.landlordAccounts;
+    const totalLandlords = list.length;
+    const activeLandlords = list.filter((a) => a.status === 'active' && !a.is_suspended).length;
+    const trialingLandlords = list.filter((a) => a.status === 'trialing' && !a.is_suspended).length;
+    const suspendedLandlords = list.filter((a) => a.is_suspended || a.status === 'suspended').length;
+    const pastDueLandlords = list.filter((a) => a.status === 'past_due').length;
+
+    const totalProperties = list.reduce((sum, a) => sum + (a.stats?.properties_count || 0), 0);
+    const totalUnitsManaged = list.reduce((sum, a) => sum + (a.stats?.units_count || 0), 0);
+    const occupiedUnitsCount = list.reduce((sum, a) => sum + (a.stats?.occupied_units_count || 0), 0);
+    const platformMrrInr = list.reduce((sum, a) => (a.is_suspended ? sum : sum + a.mrr_inr), 0);
+    const platformArrInr = platformMrrInr * 12;
+
+    const planDistribution = {
+      free: list.filter((a) => a.plan_tier === 'free').length,
+      starter: list.filter((a) => a.plan_tier === 'starter').length,
+      growth: list.filter((a) => a.plan_tier === 'growth').length,
+      professional: list.filter((a) => a.plan_tier === 'professional').length,
+      enterprise: list.filter((a) => a.plan_tier === 'enterprise').length,
+    };
+
+    return {
+      total_landlords: totalLandlords,
+      active_landlords: activeLandlords,
+      trialing_landlords: trialingLandlords,
+      suspended_landlords: suspendedLandlords,
+      past_due_landlords: pastDueLandlords,
+      total_properties: totalProperties,
+      total_units_managed: totalUnitsManaged,
+      occupied_units_count: occupiedUnitsCount,
+      platform_mrr_inr: platformMrrInr,
+      platform_arr_inr: platformArrInr,
+      monthly_growth_rate: 18.4,
+      plan_distribution: planDistribution,
+    };
+  }
+
+  public getBillingEvents(): BillingEvent[] {
+    return this.state.billingEvents;
+  }
+
+  public getSubscriptionPlans(): SubscriptionPlan[] {
+    return this.state.subscriptionPlans;
+  }
+
+  public updateSubscriptionPlan(planId: string, updates: Partial<SubscriptionPlan>): SubscriptionPlan {
+    let updatedPlan: SubscriptionPlan | undefined;
+    this.updateState((s) => {
+      const plans = s.subscriptionPlans.map((p) => {
+        if (p.id === planId) {
+          updatedPlan = { ...p, ...updates };
+          return updatedPlan;
+        }
+        return p;
+      });
+      return { ...s, subscriptionPlans: plans };
+    });
+    return updatedPlan!;
+  }
+
+  public canAddUnit(orgId?: string): { allowed: boolean; currentCount: number; maxAllowed: number; planName: string; isSuspended: boolean } {
+    const targetOrgId = orgId || this.state.currentOrgId;
+    const account = this.state.landlordAccounts.find((a) => a.id === targetOrgId);
+    const currentUnits = this.state.units.filter((u) => u.organization_id === targetOrgId).length;
+    const maxAllowed = account?.custom_unit_limit || account?.max_units_allowed || 50;
+    const planName = account?.plan_name || 'Pro';
+    const isSuspended = !!account?.is_suspended;
+
+    return {
+      allowed: !isSuspended && currentUnits < maxAllowed,
+      currentCount: currentUnits,
+      maxAllowed,
+      planName,
+      isSuspended,
+    };
   }
 
   public getDocuments(): AppDocument[] {

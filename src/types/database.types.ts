@@ -11,7 +11,7 @@ export type DocumentCategory = 'rental_agreement' | 'tenant_kyc' | 'property_doc
 export type ExpenseCategory = 'repairs' | 'maintenance' | 'electricity' | 'water' | 'society' | 'property_tax' | 'insurance' | 'cleaning' | 'brokerage' | 'renovation' | 'other';
 export type ReminderType = 'rent_collection' | 'agreement_expiry' | 'maintenance' | 'document_renewal' | 'inspection' | 'utility_bill' | 'tax_due' | 'general';
 export type PlanTier = 'free' | 'starter' | 'growth' | 'professional' | 'enterprise';
-export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'paused';
+export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'paused' | 'suspended';
 export type AuditAction = 'create' | 'update' | 'delete' | 'void' | 'archive' | 'login' | 'export';
 
 export interface Profile {
@@ -74,6 +74,75 @@ export interface Subscription {
   payment_provider: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface LandlordAccount {
+  id: string; // org ID
+  organization_name: string;
+  owner_id: string;
+  owner_name: string;
+  owner_email: string;
+  owner_phone: string;
+  city: string;
+  state: string;
+  plan_tier: PlanTier;
+  plan_name: string;
+  status: SubscriptionStatus;
+  is_suspended: boolean;
+  suspension_reason?: string;
+  trial_start: string;
+  trial_end: string;
+  current_period_end: string;
+  billing_cycle: 'monthly' | 'annual';
+  max_units_allowed: number;
+  custom_unit_limit?: number;
+  mrr_inr: number;
+  auto_renew: boolean;
+  stats: {
+    properties_count: number;
+    units_count: number;
+    occupied_units_count: number;
+    tenants_count: number;
+    monthly_collection_inr: number;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlatformMetrics {
+  total_landlords: number;
+  active_landlords: number;
+  trialing_landlords: number;
+  suspended_landlords: number;
+  past_due_landlords: number;
+  total_properties: number;
+  total_units_managed: number;
+  occupied_units_count: number;
+  platform_mrr_inr: number;
+  platform_arr_inr: number;
+  monthly_growth_rate: number;
+  plan_distribution: {
+    free: number;
+    starter: number;
+    growth: number;
+    professional: number;
+    enterprise: number;
+  };
+}
+
+export interface BillingEvent {
+  id: string;
+  organization_id: string;
+  organization_name: string;
+  owner_name: string;
+  amount_inr: number;
+  plan_name: string;
+  billing_cycle: 'monthly' | 'annual';
+  payment_method: 'upi' | 'credit_card' | 'netbanking' | 'admin_override';
+  status: 'succeeded' | 'pending' | 'failed' | 'refunded';
+  invoice_number: string;
+  transaction_ref: string;
+  created_at: string;
 }
 
 export interface Property {

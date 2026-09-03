@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authService } from '../../services/authService';
 import { dbStore } from '../../lib/store';
-import { Settings, User, Building2, Globe, Database, Download, RotateCcw, ShieldCheck, Check } from 'lucide-react';
+import { googleDriveService, DriveSyncStatus } from '../../services/googleDriveService';
+import { GoogleDriveModal } from '../../components/drive/GoogleDriveModal';
+import { Settings, User, Building2, Globe, Database, Download, RotateCcw, ShieldCheck, Check, Cloud, CloudCheck, UploadCloud, RefreshCw, ExternalLink, HardDrive } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Input';
 import { Card } from '../../components/ui/Card';
@@ -23,6 +25,30 @@ export const SettingsPage: React.FC = () => {
   const [currency, setCurrency] = useState(organization?.currency || 'INR');
   const [timezone, setTimezone] = useState(organization?.timezone || 'Asia/Kolkata');
   const [isSaving, setIsSaving] = useState(false);
+  const [showDriveModal, setShowDriveModal] = useState(false);
+  const [driveStatus, setDriveStatus] = useState<DriveSyncStatus>(googleDriveService.getStatus());
+  const [isDriveSyncing, setIsDriveSyncing] = useState(false);
+
+  useEffect(() => {
+    return googleDriveService.subscribe((s) => {
+      setDriveStatus(s);
+    });
+  }, []);
+
+  const handleSyncToDrive = async () => {
+    setIsDriveSyncing(true);
+    try {
+      const res = await googleDriveService.syncToDrive();
+      toast.success(
+        'Google Drive Synced',
+        `Successfully backed up ${res.counts?.properties || 0} properties and ${res.counts?.tenants || 0} tenants.`
+      );
+    } catch (err: any) {
+      toast.error('Sync Error', err?.message);
+    } finally {
+      setIsDriveSyncing(false);
+    }
+  };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,6 +159,113 @@ export const SettingsPage: React.FC = () => {
         </div>
       </form>
 
+      {/* Google Drive Cloud Storage & Sync (BYOS) */}
+      <Card>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <div className={`p-2 rounded-xl ${driveStatus.isConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>
+              {driveStatus.isConnected ? <CloudCheck className="w-5 h-5" /> : <Cloud className="w-5 h-5" />}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900">Google Drive Cloud Storage & Sync</h3>
+                <Badge variant={driveStatus.isConnected ? 'success' : 'neutral'}>
+                  {driveStatus.isConnected ? 'Connected' : 'Not Connected'}
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Private Bring-Your-Own-Storage (BYOS) architecture for maximum privacy & zero server bloat.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            size="sm"
+            variant={driveStatus.isConnected ? 'outline' : 'primary'}
+            onClick={() => setShowDriveModal(true)}
+            leftIcon={driveStatus.isConnected ? <RefreshCw className="w-4 h-4" /> : <Cloud className="w-4 h-4" />}
+          >
+            {driveStatus.isConnected ? 'Manage Drive Sync' : 'Connect Google Drive'}
+          </Button>
+        </div>
+
+        {driveStatus.isConnected ? (
+          <div className="space-y-4 pt-2 border-t border-slate-100">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <span className="text-slate-400 font-medium block">Google Account</span>
+                <span className="font-bold text-slate-900 block truncate mt-0.5">{driveStatus.userEmail || 'Active'}</span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <span className="text-slate-400 font-medium block">Target Drive Folder</span>
+                <span className="font-bold text-slate-900 block truncate mt-0.5">📁 Bhadekaru - Rental Manager Data</span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <span className="text-slate-400 font-medium block">Last Cloud Backup</span>
+                <span className="font-bold text-slate-900 block mt-0.5">
+                  {driveStatus.lastSyncedAt
+                    ? new Date(driveStatus.lastSyncedAt).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : 'Ready to sync'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSyncToDrive}
+                isLoading={isDriveSyncing}
+                leftIcon={<UploadCloud className="w-4 h-4" />}
+              >
+                Sync Now to Google Drive
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDriveModal(true)}
+                leftIcon={<RefreshCw className="w-4 h-4" />}
+              >
+                Restore or View Drive Backups
+              </Button>
+
+              {driveStatus.folderLink && (
+                <a
+                  href={driveStatus.folderLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-sky-600 hover:text-sky-700 font-bold inline-flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-sky-50 transition-colors ml-auto"
+                >
+                  <span>Open Folder in Google Drive</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 bg-sky-50/50 rounded-xl border border-sky-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <p className="text-slate-600 max-w-lg">
+              Connect your Google Drive to keep your lease contracts, tenant identity proofs, rent slips, and portfolio data in your own storage without relying on central database servers.
+            </p>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setShowDriveModal(true)}
+              leftIcon={<Cloud className="w-4 h-4" />}
+              className="shrink-0"
+            >
+              Setup Drive Sync
+            </Button>
+          </div>
+        )}
+      </Card>
+
       {/* Data Management & Persistence */}
       <Card>
         <div className="flex items-center gap-2 mb-4">
@@ -152,6 +285,9 @@ export const SettingsPage: React.FC = () => {
           </Button>
         </div>
       </Card>
+
+      {/* Google Drive Modal */}
+      <GoogleDriveModal isOpen={showDriveModal} onClose={() => setShowDriveModal(false)} />
     </div>
   );
 };

@@ -15,7 +15,9 @@ import {
   Crown,
   Settings,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  ShieldAlert,
+  Shield
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -72,10 +74,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Navigation Links */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+        {/* Super Admin Platform Access */}
+        <div className="space-y-1">
+          <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-sky-400 mb-1.5 flex items-center justify-between">
+            <span>SaaS Platform</span>
+            <span className="bg-sky-500/20 text-sky-300 text-[9px] px-1.5 py-0.5 rounded font-black">ADMIN</span>
+          </p>
+          <NavLink
+            to="/admin"
+            className={({ isActive }) =>
+              cn(
+                'flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all border',
+                isActive
+                  ? 'bg-gradient-to-r from-sky-600 to-indigo-600 text-white border-sky-400 shadow-md'
+                  : 'bg-slate-800/80 text-sky-300 hover:text-white hover:bg-slate-800 border-slate-700/80'
+              )
+            }
+          >
+            <div className="flex items-center gap-2.5">
+              <Shield className="w-4 h-4 text-sky-400" />
+              <span>Super Admin Console</span>
+            </div>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          </NavLink>
+        </div>
+
         {/* Core Sections */}
         <div className="space-y-1">
           <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-            Main Management
+            Landlord Workspace
           </p>
           {mainNavItems.map((item) => {
             const Icon = item.icon;

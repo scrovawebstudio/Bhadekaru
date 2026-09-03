@@ -8,7 +8,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authService } from '../../services/authService';
 import { notificationService } from '../../services/documentService';
 import { subscriptionService } from '../../services/documentService';
-import { X, Crown } from 'lucide-react';
+import { dbStore } from '../../lib/store';
+import { X, Crown, AlertTriangle, Shield } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 
@@ -119,6 +120,46 @@ export const AppLayout: React.FC = () => {
             onOpenMobileMenu={() => setMobileMenuOpen(true)}
             onMarkNotificationRead={(id) => markReadMutation.mutate(id)}
           />
+
+          {/* SaaS Super Admin Suspension Banner */}
+          {(() => {
+            const currentAcc = dbStore.getLandlordAccountById(dbStore.getState().currentOrgId);
+            if (currentAcc?.is_suspended || currentAcc?.status === 'suspended') {
+              return (
+                <div className="bg-rose-600 text-white px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
+                  <div className="flex items-center gap-2 text-xs font-medium">
+                    <AlertTriangle className="w-4 h-4 text-rose-200 shrink-0" />
+                    <span>
+                      <strong className="font-extrabold">Account Access Suspended:</strong>{' '}
+                      {currentAcc.suspension_reason || 'This landlord account has been suspended by the platform administrator.'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate('/admin')}
+                      className="bg-white text-rose-700 hover:bg-rose-50 border-white text-xs font-bold py-1 h-auto"
+                    >
+                      Open Admin Console
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        dbStore.switchOrganization('org-patil');
+                        navigate(0);
+                      }}
+                      className="bg-rose-700 text-white hover:bg-rose-800 border-rose-500 text-xs font-bold py-1 h-auto"
+                    >
+                      Switch to Rajesh Patil
+                    </Button>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
 
           <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 max-w-7xl w-full mx-auto">
             <Outlet />

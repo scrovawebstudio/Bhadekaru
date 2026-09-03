@@ -20,6 +20,7 @@ import { CalendarPage } from './features/calendar/CalendarPage';
 import { ReportsPage } from './features/reports/ReportsPage';
 import { SubscriptionPage } from './features/subscriptions/SubscriptionPage';
 import { SettingsPage } from './features/settings/SettingsPage';
+import { AdminDashboardPage } from './features/admin/AdminDashboardPage';
 import { OnboardingWizard } from './features/onboarding/OnboardingWizard';
 import { LoginPage, RegisterPage } from './features/auth/LoginPage';
 
@@ -47,6 +48,7 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/admin" element={<AdminDashboardPage />} />
               <Route path="/properties" element={<PropertiesPage />} />
               <Route path="/properties/:propertyId" element={<PropertyDetailPage />} />
               <Route path="/tenants" element={<TenantsPage />} />

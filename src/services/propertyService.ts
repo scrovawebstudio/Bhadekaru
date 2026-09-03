@@ -111,6 +111,16 @@ export const propertyService = {
 
   async createUnit(payload: Omit<PropertyUnit, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<PropertyUnit> {
     const state = dbStore.getState();
+    const check = dbStore.canAddUnit(state.organization.id);
+
+    if (check.isSuspended) {
+      throw new Error('Account Suspended: This landlord account is currently suspended. Please contact the administrator.');
+    }
+
+    if (!check.allowed) {
+      throw new Error(`Unit Limit Exceeded: Your ${check.planName} plan allows up to ${check.maxAllowed} units. You currently have ${check.currentCount} units. Please upgrade your plan or request a limit increase.`);
+    }
+
     const property = state.properties.find((p) => p.id === payload.property_id);
     const newUnit: PropertyUnit = {
       ...payload,
