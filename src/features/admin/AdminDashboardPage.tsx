@@ -26,9 +26,11 @@ import {
   Layers,
   Sparkles,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  LogOut,
 } from 'lucide-react';
 import { adminService } from '../../services/adminService';
+import { authService } from '../../services/authService';
 import { LandlordAccount, PlanTier, SubscriptionStatus } from '../../types/database.types';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -49,6 +51,14 @@ export const AdminDashboardPage: React.FC = () => {
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [selectedLandlord, setSelectedLandlord] = useState<LandlordAccount | null>(null);
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+
+  const currentSession = authService.getCurrentSession();
+
+  const handleAdminLogout = async () => {
+    await authService.logout();
+    toast.info('Logged Out', 'Super Admin console session terminated.');
+    navigate('/login');
+  };
 
   // Queries
   const { data: metrics, isLoading: isMetricsLoading } = useQuery({
@@ -165,7 +175,16 @@ export const AdminDashboardPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <div className="hidden lg:flex flex-col text-right mr-1">
+            <span className="text-[11px] font-black text-amber-300 flex items-center justify-end gap-1">
+              <Crown className="w-3 h-3 text-amber-400" /> Super Admin
+            </span>
+            <span className="text-[10px] text-slate-400">
+              {currentSession?.email || '8149862034'}
+            </span>
+          </div>
+
           <Button
             variant="outline"
             size="sm"
@@ -186,7 +205,17 @@ export const AdminDashboardPage: React.FC = () => {
             className="bg-sky-500 hover:bg-sky-600 text-white font-bold shadow-xs"
             leftIcon={<Building2 className="w-4 h-4" />}
           >
-            Landlord Demo
+            Switch to Landlord View
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleAdminLogout}
+            className="text-rose-300 hover:text-rose-200 hover:bg-rose-950/40 border border-rose-900/60 font-bold"
+            leftIcon={<LogOut className="w-3.5 h-3.5" />}
+          >
+            Sign Out
           </Button>
         </div>
       </div>

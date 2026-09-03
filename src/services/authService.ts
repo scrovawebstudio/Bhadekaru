@@ -123,44 +123,95 @@ export const authService = {
     });
   },
 
-  async login(email: string, password?: string): Promise<{ user: Profile; org: Organization; session: AuthSession }> {
-    const cleanEmail = email.trim().toLowerCase();
+  async login(identifier: string, password?: string): Promise<{ user: Profile; org: Organization; session: AuthSession }> {
+    const cleanIdentifier = identifier.trim().toLowerCase();
+    const cleanPhone = cleanIdentifier.replace(/[^0-9]/g, '');
+    const cleanPassword = password ? password.trim() : '';
 
-    // Check for Super Admin account
-    if (cleanEmail === 'admin@bhadekaru.app') {
-      const state = dbStore.getState();
-      const session: AuthSession = {
-        userId: 'usr-admin',
-        email: 'admin@bhadekaru.app',
-        fullName: 'Super Admin',
-        role: 'super_admin',
-        organizationId: state.currentOrgId,
-        organizationName: 'Platform Governance',
-        loginTime: new Date().toISOString(),
-      };
-      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-      return { user: state.profile, org: state.organization, session };
+    // Check if the user is attempting to log in as Super Admin
+    const isSuperAdminIdentifier =
+      cleanPhone === '8149862034' ||
+      cleanPhone.endsWith('8149862034') ||
+      cleanIdentifier === '8149862034' ||
+      cleanIdentifier === 'scrovawebstudio@gmail.com' ||
+      cleanIdentifier === 'admin@bhadekaru.app';
+
+    if (isSuperAdminIdentifier) {
+      // 1. Try server-side authentication endpoint first (reads .env variables securely)
+      try {
+        const response = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier: cleanIdentifier, password: cleanPassword }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.user) {
+            const state = dbStore.getState();
+            const session: AuthSession = {
+              userId: data.user.userId || 'usr-admin',
+              email: data.user.email || 'scrovawebstudio@gmail.com',
+              fullName: data.user.fullName || 'Super Admin',
+              role: 'super_admin',
+              organizationId: data.user.organizationId || state.currentOrgId,
+              organizationName: data.user.organizationName || 'Platform Governance',
+              loginTime: new Date().toISOString(),
+            };
+            localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+            return { user: state.profile, org: state.organization, session };
+          }
+        } else if (response.status === 401) {
+          throw new Error('Invalid Super Admin password. Please enter the correct PIN/password.');
+        }
+      } catch (err: any) {
+        if (err.message && err.message.includes('Super Admin')) {
+          throw err;
+        }
+        // Fallback in case server endpoint is unavailable during client-side dev
+        if (cleanPassword === '814986' || cleanPassword === 'DemoPassword123!') {
+          const state = dbStore.getState();
+          const session: AuthSession = {
+            userId: 'usr-admin',
+            email: 'scrovawebstudio@gmail.com',
+            fullName: 'Super Admin',
+            role: 'super_admin',
+            organizationId: state.currentOrgId,
+            organizationName: 'Platform Governance',
+            loginTime: new Date().toISOString(),
+          };
+          localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+          return { user: state.profile, org: state.organization, session };
+        } else {
+          throw new Error('Invalid password for Super Admin console.');
+        }
+      }
     }
 
-    // Find account in tenant directory
-    let account = dbStore.findAccountByEmail(cleanEmail);
+    // Regular Landlord account lookup (by email or phone number)
+    let account = dbStore.findAccountByIdentifier(cleanIdentifier);
 
     if (!account) {
-      // Fallback: check current profile or match by first name
+      // Fallback: check current profile email or phone
       const state = dbStore.getState();
-      if (state.profile.email.toLowerCase() === cleanEmail) {
+      if (
+        state.profile.email.toLowerCase() === cleanIdentifier ||
+        state.profile.phone.replace(/[^0-9]/g, '') === cleanPhone
+      ) {
         account = dbStore.getLandlordAccountById(state.currentOrgId);
       }
     }
 
-    // If still not found, create a new landlord workspace for this user
+    // If still not found and looks like an email or phone, auto-provision landlord workspace
     if (!account) {
-      const nameFromEmail = cleanEmail.split('@')[0].replace(/[._-]/g, ' ');
-      const capitalized = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
+      const namePart = cleanIdentifier.includes('@')
+        ? cleanIdentifier.split('@')[0].replace(/[._-]/g, ' ')
+        : `Landlord ${cleanPhone.slice(-4) || ''}`;
+      const capitalized = namePart.charAt(0).toUpperCase() + namePart.slice(1);
       account = dbStore.registerLandlordAccount({
         fullName: capitalized || 'New Landlord',
-        email: cleanEmail,
-        phone: '+91 98000 00000',
+        email: cleanIdentifier.includes('@') ? cleanIdentifier : `${cleanPhone}@bhadekaru.landlord`,
+        phone: cleanPhone ? `+91 ${cleanPhone}` : '+91 98000 00000',
         organizationName: `${capitalized}'s Real Estate`,
         planTier: 'professional',
       });

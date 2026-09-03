@@ -1429,6 +1429,17 @@ class LocalDBStore {
     return this.state.landlordAccounts.find((a) => a.owner_email.toLowerCase() === clean);
   }
 
+  public findAccountByIdentifier(identifier: string): LandlordAccount | undefined {
+    const clean = identifier.trim().toLowerCase();
+    const digits = clean.replace(/[^0-9]/g, '');
+    return this.state.landlordAccounts.find((a) => {
+      const emailMatches = a.owner_email.toLowerCase() === clean;
+      const cleanAccountPhone = a.owner_phone.replace(/[^0-9]/g, '');
+      const phoneMatches = digits.length >= 7 && (cleanAccountPhone.includes(digits) || digits.includes(cleanAccountPhone));
+      return emailMatches || phoneMatches;
+    });
+  }
+
   public registerLandlordAccount(params: {
     fullName: string;
     email: string;
