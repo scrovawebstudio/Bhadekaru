@@ -4,19 +4,22 @@ import { Tenant } from '../types/database.types';
 export const tenantService = {
   async getTenants(): Promise<Tenant[]> {
     const state = dbStore.getState();
-    return state.tenants.map((t) => {
-      const agreement = state.agreements.find((a) => a.tenant_id === t.id && a.is_active);
-      const unit = agreement ? state.units.find((u) => u.id === agreement.unit_id) : undefined;
-      const property = unit ? state.properties.find((p) => p.id === unit.property_id) : undefined;
+    const orgId = state.organization.id;
+    return state.tenants
+      .filter((t) => t.organization_id === orgId)
+      .map((t) => {
+        const agreement = state.agreements.find((a) => a.tenant_id === t.id && a.is_active && a.organization_id === orgId);
+        const unit = agreement ? state.units.find((u) => u.id === agreement.unit_id && u.organization_id === orgId) : undefined;
+        const property = unit ? state.properties.find((p) => p.id === unit.property_id && p.organization_id === orgId) : undefined;
 
-      return {
-        ...t,
-        current_unit_id: unit?.id,
-        current_unit_number: unit?.unit_number,
-        current_property_id: property?.id,
-        current_property_name: property?.name,
-      };
-    });
+        return {
+          ...t,
+          current_unit_id: unit?.id,
+          current_unit_number: unit?.unit_number,
+          current_property_id: property?.id,
+          current_property_name: property?.name,
+        };
+      });
   },
 
   async getTenantById(id: string): Promise<Tenant | null> {

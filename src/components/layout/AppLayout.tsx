@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, Navigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { MobileBottomNav, QuickActionsModal } from './MobileBottomNav';
@@ -14,6 +14,11 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 
 export const AppLayout: React.FC = () => {
+  const session = authService.getCurrentSession();
+  if (!session) {
+    return <Navigate to="/login" replace />;
+  }
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
@@ -79,6 +84,7 @@ export const AppLayout: React.FC = () => {
         {/* Desktop Sidebar */}
         <div className="hidden md:block">
           <Sidebar
+            isSuperAdmin={session.role === 'super_admin'}
             daysRemaining={subData?.daysRemaining ?? 7}
             activeUnitsCount={subData?.activeUnitsCount ?? 5}
             maxUnitsAllowed={subData?.maxUnitsAllowed ?? 50}
@@ -92,13 +98,16 @@ export const AppLayout: React.FC = () => {
             <div className="fixed inset-0 bg-slate-900/60" onClick={() => setMobileMenuOpen(false)} />
             <div className="relative w-72 bg-slate-900 h-full flex flex-col z-10 shadow-2xl">
               <div className="p-4 flex items-center justify-between border-b border-slate-800">
-                <span className="font-extrabold text-white">Bhadekaru Menu</span>
+                <span className="font-extrabold text-white">
+                  {session.role === 'super_admin' ? 'Super Admin Menu' : 'Bhadekaru Menu'}
+                </span>
                 <button onClick={() => setMobileMenuOpen(false)} className="text-slate-400 p-1">
                   <X className="w-5 h-5" />
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto" onClick={() => setMobileMenuOpen(false)}>
                 <Sidebar
+                  isSuperAdmin={session.role === 'super_admin'}
                   daysRemaining={subData?.daysRemaining ?? 7}
                   activeUnitsCount={subData?.activeUnitsCount ?? 5}
                   maxUnitsAllowed={subData?.maxUnitsAllowed ?? 50}
@@ -112,17 +121,18 @@ export const AppLayout: React.FC = () => {
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
           <Topbar
+            isSuperAdmin={session.role === 'super_admin'}
             organizationName={organization?.name}
             userName={profile?.full_name}
             avatarUrl={profile?.avatar_url}
             notifications={notifications}
-            onOpenQuickActions={() => setQuickActionsOpen(true)}
+            onOpenQuickActions={session.role === 'super_admin' ? undefined : () => setQuickActionsOpen(true)}
             onOpenMobileMenu={() => setMobileMenuOpen(true)}
             onMarkNotificationRead={(id) => markReadMutation.mutate(id)}
           />
 
-          {/* SaaS Super Admin Suspension Banner */}
-          {(() => {
+          {/* Landlord Suspension Notice */}
+          {session.role === 'landlord' && (() => {
             const currentAcc = dbStore.getLandlordAccountById(dbStore.getState().currentOrgId);
             if (currentAcc?.is_suspended || currentAcc?.status === 'suspended') {
               return (
@@ -131,28 +141,20 @@ export const AppLayout: React.FC = () => {
                     <AlertTriangle className="w-4 h-4 text-rose-200 shrink-0" />
                     <span>
                       <strong className="font-extrabold">Account Access Suspended:</strong>{' '}
-                      {currentAcc.suspension_reason || 'This landlord account has been suspended by the platform administrator.'}
+                      {currentAcc.suspension_reason || 'This landlord workspace has been suspended by platform administration. Please contact support@bhadekaru.app.'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => navigate('/admin')}
+                      onClick={async () => {
+                        await authService.logout();
+                        navigate('/login');
+                      }}
                       className="bg-white text-rose-700 hover:bg-rose-50 border-white text-xs font-bold py-1 h-auto"
                     >
-                      Open Admin Console
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        dbStore.switchOrganization('org-patil');
-                        navigate(0);
-                      }}
-                      className="bg-rose-700 text-white hover:bg-rose-800 border-rose-500 text-xs font-bold py-1 h-auto"
-                    >
-                      Switch to Rajesh Patil
+                      Sign Out
                     </Button>
                   </div>
                 </div>
@@ -167,8 +169,10 @@ export const AppLayout: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <MobileBottomNav onOpenMoreMenu={() => setMobileMenuOpen(true)} />
+      {/* Mobile Bottom Navigation (Landlord only) */}
+      {session.role === 'landlord' && (
+        <MobileBottomNav onOpenMoreMenu={() => setMobileMenuOpen(true)} />
+      )}
 
       {/* Global Quick Actions Modal */}
       <QuickActionsModal

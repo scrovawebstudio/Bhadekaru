@@ -6,11 +6,14 @@ import { PaymentMethod } from '../../types/database.types';
 import { useQuery } from '@tanstack/react-query';
 import { tenantService } from '../../services/tenantService';
 import { propertyService } from '../../services/propertyService';
+import { rentService } from '../../services/paymentService';
 
 export interface RecordPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultTenantId?: string;
+  defaultRentChargeId?: string;
+  defaultAmount?: number;
   onSubmit: (data: any) => Promise<void>;
 }
 
@@ -18,12 +21,15 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
   isOpen,
   onClose,
   defaultTenantId,
+  defaultRentChargeId,
+  defaultAmount,
   onSubmit,
 }) => {
   const [tenantId, setTenantId] = useState(defaultTenantId || '');
+  const [rentChargeId, setRentChargeId] = useState(defaultRentChargeId || '');
   const [propertyId, setPropertyId] = useState('');
   const [unitId, setUnitId] = useState('');
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(defaultAmount ? defaultAmount.toString() : '');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('upi');
   const [referenceNumber, setReferenceNumber] = useState('');
@@ -40,9 +46,43 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
     queryFn: () => propertyService.getProperties(),
   });
 
-  // When tenant changes, auto-fill property, unit & rent amount
+  const { data: rentCharges = [] } = useQuery({
+    queryKey: ['rentCharges'],
+    queryFn: () => rentService.getRentCharges(),
+  });
+
+  // Filter charges for selected tenant
+  const tenantCharges = rentCharges.filter((rc) => !tenantId || rc.tenant_id === tenantId);
+
+  // When default props change
   useEffect(() => {
-    if (tenantId) {
+    if (defaultTenantId) setTenantId(defaultTenantId);
+    if (defaultRentChargeId) setRentChargeId(defaultRentChargeId);
+    if (defaultAmount) setAmount(defaultAmount.toString());
+  }, [defaultTenantId, defaultRentChargeId, defaultAmount]);
+
+  // When charge changes, auto-fill tenant, property, unit, amount
+  useEffect(() => {
+    if (rentChargeId) {
+      const charge = rentCharges.find((c) => c.id === rentChargeId);
+      if (charge) {
+        if (charge.tenant_id) setTenantId(charge.tenant_id);
+        if (charge.property_id) setPropertyId(charge.property_id);
+        if (charge.unit_id) setUnitId(charge.unit_id);
+        const remaining = Math.max(0, charge.total_amount - (charge.paid_amount || 0));
+        if (!amount || amount === '0') {
+          setAmount(remaining.toString());
+        }
+        if (!notes) {
+          setNotes(`Rent payment for ${charge.billing_month}`);
+        }
+      }
+    }
+  }, [rentChargeId, rentCharges]);
+
+  // When tenant changes, auto-fill property, unit & rent amount if no charge selected
+  useEffect(() => {
+    if (tenantId && !rentChargeId) {
       const selected = tenants.find((t) => t.id === tenantId);
       if (selected) {
         if (selected.current_property_id) setPropertyId(selected.current_property_id);
@@ -50,19 +90,13 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
           setUnitId(selected.current_unit_id);
           const prop = properties.find((p) => p.id === selected.current_property_id);
           const unit = prop?.units?.find((u) => u.id === selected.current_unit_id);
-          if (unit) {
+          if (unit && !amount) {
             setAmount(unit.monthly_rent.toString());
           }
         }
       }
     }
-  }, [tenantId, tenants, properties]);
-
-  useEffect(() => {
-    if (defaultTenantId) {
-      setTenantId(defaultTenantId);
-    }
-  }, [defaultTenantId]);
+  }, [tenantId, rentChargeId, tenants, properties]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,6 +106,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
     try {
       await onSubmit({
         tenant_id: tenantId || undefined,
+        rent_charge_id: rentChargeId || undefined,
         property_id: propertyId || undefined,
         unit_id: unitId || undefined,
         amount: Number(amount),
@@ -104,6 +139,26 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
             ))}
           </Select>
         </div>
+
+        {tenantCharges.length > 0 && (
+          <div>
+            <Select
+              label="Associated Rent Charge / Dues"
+              value={rentChargeId}
+              onChange={(e) => setRentChargeId(e.target.value)}
+            >
+              <option value="">-- Auto-detect & settle oldest pending charge --</option>
+              {tenantCharges.map((c) => {
+                const pending = c.total_amount - (c.paid_amount || 0);
+                return (
+                  <option key={c.id} value={c.id}>
+                    {c.billing_month} ({c.unit_number}) - ₹{pending.toLocaleString('en-IN')} pending [{c.status.toUpperCase()}]
+                  </option>
+                );
+              })}
+            </Select>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <Input

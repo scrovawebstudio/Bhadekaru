@@ -25,7 +25,7 @@ import {
   SubscriptionStatus
 } from '../types/database.types';
 
-const STORAGE_KEY = 'bhadekaru_db_state_v2';
+const STORAGE_KEY = 'bhadekaru_db_state_v4';
 
 // Seed Initial Data
 const SEED_PROFILE: Profile = {
@@ -135,6 +135,7 @@ export const SEED_LANDLORD_ACCOUNTS: LandlordAccount[] = [
     max_units_allowed: 50,
     mrr_inr: 499,
     auto_renew: true,
+    password: 'DemoPassword123!',
     stats: {
       properties_count: 2,
       units_count: 5,
@@ -412,6 +413,25 @@ const SEED_PROPERTIES: Property[] = [
     created_at: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date().toISOString(),
   },
+  {
+    id: 'prop-sharma-1',
+    organization_id: 'org-2002',
+    name: 'Sharma Palms Residency',
+    type: 'apartment',
+    status: 'active',
+    address_line1: '12th Main, HAL 2nd Stage',
+    address_line2: 'Indiranagar',
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    pincode: '560038',
+    country: 'IN',
+    purchase_date: '2020-05-12',
+    purchase_price: 24000000,
+    current_valuation: 31000000,
+    notes: 'Luxury residential apartment building in Indiranagar, Bengaluru.',
+    created_at: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
 ];
 
 const SEED_UNITS: PropertyUnit[] = [
@@ -515,6 +535,26 @@ const SEED_UNITS: PropertyUnit[] = [
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
+  {
+    id: 'unit-sharma-1',
+    organization_id: 'org-2002',
+    property_id: 'prop-sharma-1',
+    property_name: 'Sharma Palms Residency',
+    unit_number: 'Penthouse B-401',
+    floor_number: 4,
+    area_sqft: 1400,
+    bedrooms: 3,
+    bathrooms: 3,
+    furnishing: 'fully_furnished',
+    monthly_rent: 48000,
+    security_deposit: 150000,
+    maintenance_charge: 3500,
+    parking_included: true,
+    status: 'occupied',
+    notes: 'Premium Bengaluru penthouse.',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
 ];
 
 const SEED_TENANTS: Tenant[] = [
@@ -603,6 +643,28 @@ const SEED_TENANTS: Tenant[] = [
     current_property_name: 'Sai Commercial Complex',
     current_unit_number: 'Shop G-01',
     notes: 'Running a boutique takeaway cafe. 3-year commercial lease.',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'ten-sharma-1',
+    organization_id: 'org-2002',
+    full_name: 'Karthik Raman (Infosys)',
+    phone: '+91 98451 99887',
+    email: 'karthik.raman@infosys.com',
+    emergency_contact_name: 'Suresh Raman (Father)',
+    emergency_contact_phone: '+91 98450 22334',
+    permanent_address: '12th Cross, Indiranagar, Bengaluru 560038',
+    occupation: 'Lead Software Architect',
+    company_name: 'Infosys Ltd',
+    occupants_count: 2,
+    vehicle_details: 'Sedan (KA 03 MD 9988)',
+    is_active: true,
+    current_unit_id: 'unit-sharma-1',
+    current_property_id: 'prop-sharma-1',
+    current_property_name: 'Sharma Palms Residency',
+    current_unit_number: 'Penthouse B-401',
+    notes: 'Corporate lease with direct reimbursement.',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -706,6 +768,31 @@ const SEED_AGREEMENTS: RentalAgreement[] = [
     annual_escalation_percent: 10,
     is_active: true,
     notes: '36-month commercial lease with 10% annual escalation.',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'agr-sharma-1',
+    organization_id: 'org-2002',
+    agreement_number: 'AGR-2026-BLR-01',
+    property_id: 'prop-sharma-1',
+    property_name: 'Sharma Palms Residency',
+    unit_id: 'unit-sharma-1',
+    unit_number: 'Penthouse B-401',
+    tenant_id: 'ten-sharma-1',
+    tenant_name: 'Karthik Raman (Infosys)',
+    start_date: '2026-02-01',
+    end_date: '2027-01-31',
+    monthly_rent: 48000,
+    security_deposit: 150000,
+    rent_due_day: 1,
+    grace_period_days: 5,
+    late_fee_amount: 1000,
+    lock_in_months: 6,
+    notice_period_days: 30,
+    annual_escalation_percent: 5,
+    is_active: true,
+    notes: 'Bengaluru agreement with standard corporate IT clause.',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -1311,9 +1398,30 @@ export interface DBState {
 
 class LocalDBStore {
   private state: DBState;
+  private listeners: Array<() => void> = [];
 
   constructor() {
     this.state = this.loadState();
+  }
+
+  public subscribe(listener: () => void): () => void {
+    this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== listener);
+    };
+  }
+
+  private notify() {
+    this.listeners.forEach((l) => {
+      try {
+        l();
+      } catch (e) {
+        console.error(e);
+      }
+    });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('bhadekaru_db_change'));
+    }
   }
 
   private loadState(): DBState {
@@ -1373,12 +1481,14 @@ class LocalDBStore {
   public updateState(updater: (current: DBState) => DBState): DBState {
     this.state = updater(this.state);
     this.saveState(this.state);
+    this.notify();
     return this.state;
   }
 
   public resetToDefault(): DBState {
     localStorage.removeItem(STORAGE_KEY);
     this.state = this.loadState();
+    this.notify();
     return this.state;
   }
 
@@ -1444,6 +1554,7 @@ class LocalDBStore {
     fullName: string;
     email: string;
     phone: string;
+    password?: string;
     organizationName?: string;
     city?: string;
     planTier?: PlanTier;
@@ -1475,6 +1586,7 @@ class LocalDBStore {
       mrr_inr: plan.monthly_price_inr,
       is_suspended: false,
       auto_renew: true,
+      password: params.password || 'DemoPassword123!',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       stats: {
@@ -1715,7 +1827,8 @@ class LocalDBStore {
   }
 
   public getDocuments(): AppDocument[] {
-    return this.state.documents;
+    const orgId = this.state.organization.id;
+    return this.state.documents.filter((d) => d.organization_id === orgId);
   }
 
   public createDocument(payload: Omit<AppDocument, 'id' | 'organization_id' | 'created_at'>): AppDocument {
@@ -1737,7 +1850,8 @@ class LocalDBStore {
   }
 
   public getReminders(): Reminder[] {
-    return this.state.reminders;
+    const orgId = this.state.organization.id;
+    return this.state.reminders.filter((r) => r.organization_id === orgId);
   }
 
   public createReminder(payload: Omit<Reminder, 'id' | 'organization_id' | 'created_at'>): Reminder {

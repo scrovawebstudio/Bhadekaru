@@ -47,6 +47,9 @@ export const PaymentsPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       queryClient.invalidateQueries({ queryKey: ['rentCharges'] });
       queryClient.invalidateQueries({ queryKey: ['financialSummary'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
+      queryClient.invalidateQueries({ queryKey: ['landlordAccounts'] });
+      setActiveTab('history');
       toast.success('Payment Recorded', `Receipt #${newPayment.receipt_number} generated.`);
       setSelectedReceipt(newPayment);
     },
@@ -211,7 +214,8 @@ export const PaymentsPage: React.FC = () => {
                               </button>
                               <button
                                 onClick={() => {
-                                  setSearchParams({ action: 'record', tenantId: charge.tenant_id });
+                                  const pendingAmount = charge.total_amount - (charge.paid_amount || 0);
+                                  setSearchParams({ action: 'record', tenantId: charge.tenant_id, chargeId: charge.id, amount: pendingAmount.toString() });
                                   setRecordModalOpen(true);
                                 }}
                                 className="px-2.5 py-1 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg transition-colors inline-flex items-center gap-1"
@@ -291,6 +295,8 @@ export const PaymentsPage: React.FC = () => {
       <RecordPaymentModal
         isOpen={recordModalOpen}
         defaultTenantId={searchParams.get('tenantId') || undefined}
+        defaultRentChargeId={searchParams.get('chargeId') || undefined}
+        defaultAmount={searchParams.get('amount') ? Number(searchParams.get('amount')) : undefined}
         onClose={() => {
           setRecordModalOpen(false);
           setSearchParams({});

@@ -5,7 +5,8 @@ import { generateReceiptNumber } from '../lib/utils';
 export const rentService = {
   async getRentCharges(filterMonth?: string): Promise<RentCharge[]> {
     const state = dbStore.getState();
-    let charges = [...state.rentCharges];
+    const orgId = state.organization.id;
+    let charges = state.rentCharges.filter((c) => c.organization_id === orgId);
     if (filterMonth) {
       charges = charges.filter((c) => c.billing_month === filterMonth);
     }
@@ -20,7 +21,7 @@ export const rentService = {
       const existingCharges = s.rentCharges;
       const newCharges: RentCharge[] = [];
 
-      s.agreements.filter((a) => a.is_active).forEach((agr) => {
+      s.agreements.filter((a) => a.is_active && a.organization_id === s.organization.id).forEach((agr) => {
         // Check if charge already generated for this agreement and month
         const alreadyGenerated = existingCharges.some(
           (c) => c.agreement_id === agr.id && c.billing_month === billingMonth
@@ -75,12 +76,16 @@ export const rentService = {
 export const paymentService = {
   async getPayments(): Promise<Payment[]> {
     const state = dbStore.getState();
-    return [...state.payments].sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime());
+    const orgId = state.organization.id;
+    return state.payments
+      .filter((p) => p.organization_id === orgId)
+      .sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime());
   },
 
   async getPaymentById(id: string): Promise<Payment | null> {
     const state = dbStore.getState();
-    return state.payments.find((p) => p.id === id) || null;
+    const orgId = state.organization.id;
+    return state.payments.find((p) => p.id === id && p.organization_id === orgId) || null;
   },
 
   async recordPayment(payload: {
@@ -96,20 +101,39 @@ export const paymentService = {
   }): Promise<Payment> {
     const state = dbStore.getState();
     const tenant = state.tenants.find((t) => t.id === payload.tenant_id);
-    const unit = payload.unit_id ? state.units.find((u) => u.id === payload.unit_id) : undefined;
-    const property = payload.property_id ? state.properties.find((p) => p.id === payload.property_id) : undefined;
+    const unit = payload.unit_id ? state.units.find((u) => u.id === payload.unit_id) : (
+      tenant?.current_unit_id ? state.units.find((u) => u.id === tenant.current_unit_id) : undefined
+    );
+    const property = payload.property_id ? state.properties.find((p) => p.id === payload.property_id) : (
+      unit?.property_id ? state.properties.find((p) => p.id === unit.property_id) : undefined
+    );
+    const agreement = state.agreements.find((a) => a.tenant_id === payload.tenant_id && a.is_active);
+
+    // Identify target rent charge to update
+    let targetChargeId = payload.rent_charge_id;
+    if (!targetChargeId && payload.tenant_id) {
+      const openCharge = state.rentCharges.find((rc) => 
+        rc.tenant_id === payload.tenant_id && 
+        rc.status !== 'paid' && 
+        rc.status !== 'cancelled' && 
+        rc.status !== 'waived'
+      );
+      if (openCharge) {
+        targetChargeId = openCharge.id;
+      }
+    }
 
     const receiptNumber = generateReceiptNumber();
     const newPayment: Payment = {
       id: `pay-${Date.now()}`,
       organization_id: state.organization.id,
       receipt_number: receiptNumber,
-      rent_charge_id: payload.rent_charge_id,
+      rent_charge_id: targetChargeId,
       tenant_id: payload.tenant_id,
       tenant_name: tenant?.full_name || 'Tenant',
-      property_id: payload.property_id || unit?.property_id || '',
+      property_id: payload.property_id || property?.id || unit?.property_id || '',
       property_name: property?.name || unit?.property_name || 'Property',
-      unit_id: payload.unit_id || '',
+      unit_id: payload.unit_id || unit?.id || '',
       unit_number: unit?.unit_number || 'Unit',
       amount: Number(payload.amount),
       payment_date: payload.payment_date,
@@ -123,11 +147,11 @@ export const paymentService = {
     };
 
     dbStore.updateState((s) => {
-      // Update related rent charge if present
-      let updatedRentCharges = s.rentCharges;
-      if (payload.rent_charge_id) {
-        updatedRentCharges = s.rentCharges.map((rc) => {
-          if (rc.id === payload.rent_charge_id) {
+      // Update related rent charge if found, or create a paid charge so both tables reflect it immediately
+      let updatedRentCharges = [...s.rentCharges];
+      if (targetChargeId) {
+        updatedRentCharges = updatedRentCharges.map((rc) => {
+          if (rc.id === targetChargeId) {
             const newPaid = Number(rc.paid_amount || 0) + Number(payload.amount);
             const isFull = newPaid >= rc.total_amount;
             return {
@@ -139,7 +163,65 @@ export const paymentService = {
           }
           return rc;
         });
+      } else if (payload.tenant_id) {
+        const billingMonth = payload.payment_date.slice(0, 7);
+        const existingForMonth = updatedRentCharges.find((rc) => rc.tenant_id === payload.tenant_id && rc.billing_month === billingMonth);
+        if (existingForMonth) {
+          updatedRentCharges = updatedRentCharges.map((rc) => {
+            if (rc.id === existingForMonth.id) {
+              const newPaid = Number(rc.paid_amount || 0) + Number(payload.amount);
+              return {
+                ...rc,
+                paid_amount: newPaid,
+                status: newPaid >= rc.total_amount ? 'paid' : 'partially_paid',
+                updated_at: new Date().toISOString(),
+              };
+            }
+            return rc;
+          });
+          newPayment.rent_charge_id = existingForMonth.id;
+        } else {
+          const directCharge: RentCharge = {
+            id: `rc-${Date.now()}`,
+            organization_id: s.organization.id,
+            agreement_id: agreement?.id || 'agr-direct',
+            tenant_id: payload.tenant_id,
+            tenant_name: tenant?.full_name || 'Tenant',
+            unit_id: payload.unit_id || unit?.id || '',
+            unit_number: unit?.unit_number || 'Unit',
+            property_id: payload.property_id || property?.id || '',
+            property_name: property?.name || 'Property',
+            billing_month: billingMonth,
+            due_date: payload.payment_date,
+            base_rent: Number(payload.amount),
+            maintenance_charge: 0,
+            parking_charge: 0,
+            late_fee: 0,
+            other_charges: 0,
+            total_amount: Number(payload.amount),
+            paid_amount: Number(payload.amount),
+            status: 'paid' as const,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          updatedRentCharges = [directCharge, ...updatedRentCharges];
+          newPayment.rent_charge_id = directCharge.id;
+        }
       }
+
+      // Update landlord account stats
+      const updatedAccounts = s.landlordAccounts.map((a) => {
+        if (a.id === s.currentOrgId) {
+          return {
+            ...a,
+            stats: {
+              ...a.stats,
+              monthly_collection_inr: (a.stats?.monthly_collection_inr || 0) + Number(payload.amount),
+            },
+          };
+        }
+        return a;
+      });
 
       // Add notification and audit log
       const newNotification = {
@@ -170,6 +252,7 @@ export const paymentService = {
         ...s,
         payments: [newPayment, ...s.payments],
         rentCharges: updatedRentCharges,
+        landlordAccounts: updatedAccounts,
         notifications: [newNotification, ...s.notifications],
         auditLogs: [newAuditLog, ...s.auditLogs],
       };

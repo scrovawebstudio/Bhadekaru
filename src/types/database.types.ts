@@ -98,6 +98,7 @@ export interface LandlordAccount {
   custom_unit_limit?: number;
   mrr_inr: number;
   auto_renew: boolean;
+  password?: string;
   stats: {
     properties_count: number;
     units_count: number;

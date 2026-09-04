@@ -3,11 +3,15 @@ import { MaintenanceRequest, Vendor, Expense } from '../types/database.types';
 
 export const maintenanceService = {
   async getMaintenanceRequests(): Promise<MaintenanceRequest[]> {
-    return dbStore.getState().maintenance;
+    const state = dbStore.getState();
+    const orgId = state.organization.id;
+    return state.maintenance.filter((m) => m.organization_id === orgId);
   },
 
   async getVendors(): Promise<Vendor[]> {
-    return dbStore.getState().vendors;
+    const state = dbStore.getState();
+    const orgId = state.organization.id;
+    return state.vendors.filter((v) => v.organization_id === orgId);
   },
 
   async createMaintenanceRequest(payload: Omit<MaintenanceRequest, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<MaintenanceRequest> {
@@ -91,7 +95,11 @@ export const maintenanceService = {
 
 export const expenseService = {
   async getExpenses(): Promise<Expense[]> {
-    return dbStore.getState().expenses.sort((a, b) => new Date(b.expense_date).getTime() - new Date(a.expense_date).getTime());
+    const state = dbStore.getState();
+    const orgId = state.organization.id;
+    return state.expenses
+      .filter((e) => e.organization_id === orgId)
+      .sort((a, b) => new Date(b.expense_date).getTime() - new Date(a.expense_date).getTime());
   },
 
   async createExpense(payload: Omit<Expense, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Expense> {

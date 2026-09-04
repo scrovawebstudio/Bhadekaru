@@ -128,16 +128,6 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
-  const handleImpersonate = async (landlord: LandlordAccount) => {
-    try {
-      await adminService.switchOrganization(landlord.id);
-      toast.success('Switched Workspace', `Viewing as ${landlord.organization_name} (${landlord.owner_name})`);
-      navigate('/dashboard');
-    } catch {
-      toast.error('Error', 'Failed to switch workspace.');
-    }
-  };
-
   const handleExportCSV = () => {
     const headers = 'Organization,Owner,Email,Phone,City,Plan,Status,Units,Max Units,MRR (INR),Trial End\n';
     const rows = landlords
@@ -575,15 +565,6 @@ export const AdminDashboardPage: React.FC = () => {
                                 title={landlord.is_suspended ? 'Reactivate & Unlock Account' : 'Suspend & Lock Account'}
                               >
                                 {landlord.is_suspended ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                              </button>
-
-                              {/* Impersonate / Open Workspace */}
-                              <button
-                                onClick={() => handleImpersonate(landlord)}
-                                className="p-1.5 bg-slate-900 hover:bg-sky-600 text-white rounded-lg transition-all"
-                                title="Impersonate / Log in as Landlord"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>

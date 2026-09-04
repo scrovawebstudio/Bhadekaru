@@ -23,51 +23,110 @@ import { SettingsPage } from './features/settings/SettingsPage';
 import { AdminDashboardPage } from './features/admin/AdminDashboardPage';
 import { OnboardingWizard } from './features/onboarding/OnboardingWizard';
 import { LoginPage, RegisterPage } from './features/auth/LoginPage';
+import { authService } from './services/authService';
+import { dbStore } from './lib/store';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 0,
       refetchOnWindowFocus: false,
     },
   },
 });
 
+const RootRedirect: React.FC = () => {
+  const session = authService.getCurrentSession();
+  if (!session) {
+    return <Navigate to="/login" replace />;
+  }
+  return session.role === 'super_admin' ? (
+    <Navigate to="/admin" replace />
+  ) : (
+    <Navigate to="/dashboard" replace />
+  );
+};
+
+const AdminOnlyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const session = authService.getCurrentSession();
+  if (!session) return <Navigate to="/login" replace />;
+  if (session.role !== 'super_admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+};
+
+const LandlordOnlyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const session = authService.getCurrentSession();
+  if (!session) return <Navigate to="/login" replace />;
+  if (session.role === 'super_admin') {
+    return <Navigate to="/admin" replace />;
+  }
+  return <>{children}</>;
+};
+
+const ProtectedLayout: React.FC = () => {
+  const session = authService.getCurrentSession();
+  if (!session) {
+    return <Navigate to="/login" replace />;
+  }
+  return <AppLayout />;
+};
+
 export default function App() {
+  React.useEffect(() => {
+    const unsubscribe = dbStore.subscribe(() => {
+      queryClient.invalidateQueries();
+    });
+    return unsubscribe;
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <BrowserRouter>
           <Routes>
+            {/* Root Route - Directs unauthenticated users to /login immediately */}
+            <Route path="/" element={<RootRedirect />} />
+
             {/* Standalone Auth & Onboarding Routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/onboarding" element={<OnboardingWizard />} />
 
-            {/* Authenticated Application Shell */}
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/admin" element={<AdminDashboardPage />} />
-              <Route path="/properties" element={<PropertiesPage />} />
-              <Route path="/properties/:propertyId" element={<PropertyDetailPage />} />
-              <Route path="/tenants" element={<TenantsPage />} />
-              <Route path="/tenants/:tenantId" element={<TenantProfilePage />} />
-              <Route path="/payments" element={<PaymentsPage />} />
-              <Route path="/agreements" element={<AgreementsPage />} />
-              <Route path="/deposits" element={<DepositsPage />} />
-              <Route path="/maintenance" element={<MaintenancePage />} />
-              <Route path="/expenses" element={<ExpensesPage />} />
-              <Route path="/documents" element={<DocumentsPage />} />
-              <Route path="/reminders" element={<RemindersPage />} />
-              <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/subscription" element={<SubscriptionPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
+            {/* Strictly Authenticated Application Shell */}
+            <Route element={<ProtectedLayout />}>
+              {/* Super Admin Only Route */}
+              <Route
+                path="/admin"
+                element={
+                  <AdminOnlyRoute>
+                    <AdminDashboardPage />
+                  </AdminOnlyRoute>
+                }
+              />
+
+              {/* Landlord Only Routes */}
+              <Route path="/dashboard" element={<LandlordOnlyRoute><DashboardPage /></LandlordOnlyRoute>} />
+              <Route path="/properties" element={<LandlordOnlyRoute><PropertiesPage /></LandlordOnlyRoute>} />
+              <Route path="/properties/:propertyId" element={<LandlordOnlyRoute><PropertyDetailPage /></LandlordOnlyRoute>} />
+              <Route path="/tenants" element={<LandlordOnlyRoute><TenantsPage /></LandlordOnlyRoute>} />
+              <Route path="/tenants/:tenantId" element={<LandlordOnlyRoute><TenantProfilePage /></LandlordOnlyRoute>} />
+              <Route path="/payments" element={<LandlordOnlyRoute><PaymentsPage /></LandlordOnlyRoute>} />
+              <Route path="/agreements" element={<LandlordOnlyRoute><AgreementsPage /></LandlordOnlyRoute>} />
+              <Route path="/deposits" element={<LandlordOnlyRoute><DepositsPage /></LandlordOnlyRoute>} />
+              <Route path="/maintenance" element={<LandlordOnlyRoute><MaintenancePage /></LandlordOnlyRoute>} />
+              <Route path="/expenses" element={<LandlordOnlyRoute><ExpensesPage /></LandlordOnlyRoute>} />
+              <Route path="/documents" element={<LandlordOnlyRoute><DocumentsPage /></LandlordOnlyRoute>} />
+              <Route path="/reminders" element={<LandlordOnlyRoute><RemindersPage /></LandlordOnlyRoute>} />
+              <Route path="/calendar" element={<LandlordOnlyRoute><CalendarPage /></LandlordOnlyRoute>} />
+              <Route path="/reports" element={<LandlordOnlyRoute><ReportsPage /></LandlordOnlyRoute>} />
+              <Route path="/subscription" element={<LandlordOnlyRoute><SubscriptionPage /></LandlordOnlyRoute>} />
+              <Route path="/settings" element={<LandlordOnlyRoute><SettingsPage /></LandlordOnlyRoute>} />
             </Route>
 
-            {/* Fallback route */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            {/* Fallback route - Redirects to /login if unauthenticated, else to role dashboard */}
+            <Route path="*" element={<RootRedirect />} />
           </Routes>
         </BrowserRouter>
       </ToastProvider>

@@ -162,18 +162,6 @@ export const LoginPage: React.FC = () => {
             <div className="grid grid-cols-2 p-1 bg-slate-950 rounded-xl border border-slate-800 text-xs font-bold">
               <button
                 type="button"
-                onClick={() => switchTab('admin')}
-                className={`py-2 rounded-lg flex items-center justify-center gap-2 transition-all ${
-                  activeTab === 'admin'
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Crown className="w-3.5 h-3.5" />
-                <span>Super Admin</span>
-              </button>
-              <button
-                type="button"
                 onClick={() => switchTab('landlord')}
                 className={`py-2 rounded-lg flex items-center justify-center gap-2 transition-all ${
                   activeTab === 'landlord'
@@ -184,6 +172,19 @@ export const LoginPage: React.FC = () => {
                 <Building2 className="w-3.5 h-3.5" />
                 <span>Landlord Workspace</span>
               </button>
+              <button
+                type="button"
+                onClick={() => switchTab('admin')}
+                className={`py-2 rounded-lg flex items-center justify-center gap-2 transition-all ${
+                  activeTab === 'admin'
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Crown className="w-3.5 h-3.5" />
+                <span>Super Admin</span>
+              </button>
+              
             </div>
           </div>
 
@@ -290,19 +291,31 @@ export const LoginPage: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => handleQuickLogin('scrovawebstudio@gmail.com', 'DemoPassword123!', 'landlord')}
+                onClick={() => handleQuickLogin('landlord@bhadekaru.app', 'DemoPassword123!', 'landlord')}
                 className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700/80 hover:border-sky-500/50 text-left transition-all"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-white">Rajesh Patil</span>
-                  <span className="text-[9px] font-black text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded">Landlord</span>
+                  <span className="text-[9px] font-black text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded">Landlord 1</span>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-0.5 truncate">Patil Real Estate • Pune</p>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleQuickLogin('anand@vermaholdings.com', 'DemoPassword123!', 'landlord')}
+                onClick={() => handleQuickLogin('priya.sharma@gmail.com', 'DemoPassword123!', 'landlord')}
+                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700/80 hover:border-sky-500/50 text-left transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white">Priya Sharma</span>
+                  <span className="text-[9px] font-black text-indigo-400 bg-indigo-950/80 px-1.5 py-0.5 rounded">Landlord 2</span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-0.5 truncate">Sharma Rentals • Mumbai</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleQuickLogin('anand@heritagevillas.in', 'DemoPassword123!', 'landlord')}
                 className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 border border-rose-900/50 hover:border-rose-500 text-left transition-all"
                 title="Test SaaS lockout enforcement"
               >
@@ -310,7 +323,7 @@ export const LoginPage: React.FC = () => {
                   <span className="text-xs font-bold text-rose-300">Anand Verma</span>
                   <span className="text-[9px] font-black text-rose-400 bg-rose-950 px-1.5 py-0.5 rounded">Suspended</span>
                 </div>
-                <p className="text-[10px] text-slate-400 mt-0.5 truncate">Verma Holdings (Locked Out)</p>
+                <p className="text-[10px] text-slate-400 mt-0.5 truncate">Heritage Villas (Locked Out)</p>
               </button>
             </div>
           </div>

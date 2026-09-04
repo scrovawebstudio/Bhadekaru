@@ -5,7 +5,8 @@ import { generateAgreementNumber } from '../lib/utils';
 export const agreementService = {
   async getAgreements(): Promise<RentalAgreement[]> {
     const state = dbStore.getState();
-    return state.agreements;
+    const orgId = state.organization.id;
+    return state.agreements.filter((a) => a.organization_id === orgId);
   },
 
   async createAgreement(payload: Omit<RentalAgreement, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<RentalAgreement> {
@@ -93,11 +94,15 @@ export const agreementService = {
 
 export const depositService = {
   async getDeposits(): Promise<SecurityDeposit[]> {
-    return dbStore.getState().deposits;
+    const state = dbStore.getState();
+    const orgId = state.organization.id;
+    return state.deposits.filter((d) => d.organization_id === orgId);
   },
 
   async getDepositTransactions(depositId: string): Promise<DepositTransaction[]> {
-    return dbStore.getState().depositTransactions.filter((tx) => tx.deposit_id === depositId);
+    const state = dbStore.getState();
+    const orgId = state.organization.id;
+    return state.depositTransactions.filter((tx) => tx.deposit_id === depositId && tx.organization_id === orgId);
   },
 
   async processMoveOutSettlement(payload: {

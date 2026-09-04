@@ -145,29 +145,40 @@ export const subscriptionService = {
 export const reportService = {
   async getFinancialSummary() {
     const state = dbStore.getState();
+    const orgId = state.organization.id;
+
+    const orgProperties = state.properties.filter((p) => p.organization_id === orgId);
+    const orgUnits = state.units.filter((u) => u.organization_id === orgId);
+    const orgRentCharges = state.rentCharges.filter((rc) => rc.organization_id === orgId);
+    const orgPayments = state.payments.filter((p) => p.organization_id === orgId);
+    const orgExpenses = state.expenses.filter((e) => e.organization_id === orgId);
     
     // Calculate monthly totals
-    const currentMonth = '2026-09';
-    const currentMonthCharges = state.rentCharges.filter((rc) => rc.billing_month.startsWith(currentMonth));
+    const currentMonth = new Date().toISOString().slice(0, 7); // e.g. '2026-09'
+    const currentMonthCharges = orgRentCharges.filter((rc) => rc.billing_month?.startsWith(currentMonth) || rc.due_date?.startsWith(currentMonth));
     
     const expectedRent = currentMonthCharges.reduce((acc, c) => acc + Number(c.total_amount || 0), 0);
-    const collectedRent = currentMonthCharges.reduce((acc, c) => acc + Number(c.paid_amount || 0), 0);
-    const pendingRent = expectedRent - collectedRent;
+    const collectedFromCharges = currentMonthCharges.reduce((acc, c) => acc + Number(c.paid_amount || 0), 0);
+    const collectedFromPayments = orgPayments
+      .filter((p) => !p.is_void && p.payment_date?.startsWith(currentMonth))
+      .reduce((acc, p) => acc + Number(p.amount || 0), 0);
+    const collectedRent = Math.max(collectedFromCharges, collectedFromPayments);
+    const pendingRent = Math.max(0, expectedRent - collectedRent);
 
-    const currentMonthExpenses = state.expenses
-      .filter((e) => e.expense_date.startsWith(currentMonth))
+    const currentMonthExpenses = orgExpenses
+      .filter((e) => e.expense_date?.startsWith(currentMonth))
       .reduce((acc, e) => acc + Number(e.amount || 0), 0);
 
-    const totalUnits = state.units.length;
-    const occupiedUnits = state.units.filter((u) => u.status === 'occupied').length;
+    const totalUnits = orgUnits.length;
+    const occupiedUnits = orgUnits.filter((u) => u.status === 'occupied').length;
     const vacantUnits = totalUnits - occupiedUnits;
     const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
 
-    const overdueCharges = state.rentCharges.filter((rc) => rc.status === 'overdue');
+    const overdueCharges = orgRentCharges.filter((rc) => rc.status === 'overdue');
     const totalOverdueAmount = overdueCharges.reduce((acc, rc) => acc + (Number(rc.total_amount || 0) - Number(rc.paid_amount || 0)), 0);
 
     return {
-      totalProperties: state.properties.length,
+      totalProperties: orgProperties.length,
       totalUnits,
       occupiedUnits,
       vacantUnits,

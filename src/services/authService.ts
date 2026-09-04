@@ -148,18 +148,45 @@ export const authService = {
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.user) {
-            const state = dbStore.getState();
             const session: AuthSession = {
               userId: data.user.userId || 'usr-admin',
               email: data.user.email || 'scrovawebstudio@gmail.com',
               fullName: data.user.fullName || 'Super Admin',
               role: 'super_admin',
-              organizationId: data.user.organizationId || state.currentOrgId,
-              organizationName: data.user.organizationName || 'Platform Governance',
+              organizationId: 'org-platform-governance',
+              organizationName: 'Platform Governance',
               loginTime: new Date().toISOString(),
             };
             localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-            return { user: state.profile, org: state.organization, session };
+
+            dbStore.updateState((s) => ({
+              ...s,
+              currentRole: 'super_admin',
+              currentOrgId: 'org-platform-governance',
+              organization: {
+                id: 'org-platform-governance',
+                name: 'Platform Governance',
+                owner_id: 'usr-admin',
+                currency: 'INR',
+                timezone: 'Asia/Kolkata',
+                onboarding_completed: true,
+                onboarding_units_managed: '0',
+                onboarding_property_types: [],
+                created_at: s.organization.created_at,
+                updated_at: new Date().toISOString(),
+              },
+              profile: {
+                id: 'usr-admin',
+                full_name: 'Super Admin',
+                email: 'scrovawebstudio@gmail.com',
+                phone: '+91 81498 62034',
+                avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+                created_at: s.profile.created_at,
+                updated_at: new Date().toISOString(),
+              },
+            }));
+
+            return { user: dbStore.getState().profile, org: dbStore.getState().organization, session };
           }
         } else if (response.status === 401) {
           throw new Error('Invalid Super Admin password. Please enter the correct PIN/password.');
@@ -170,18 +197,45 @@ export const authService = {
         }
         // Fallback in case server endpoint is unavailable during client-side dev
         if (cleanPassword === '814986' || cleanPassword === 'DemoPassword123!') {
-          const state = dbStore.getState();
           const session: AuthSession = {
             userId: 'usr-admin',
             email: 'scrovawebstudio@gmail.com',
             fullName: 'Super Admin',
             role: 'super_admin',
-            organizationId: state.currentOrgId,
+            organizationId: 'org-platform-governance',
             organizationName: 'Platform Governance',
             loginTime: new Date().toISOString(),
           };
           localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-          return { user: state.profile, org: state.organization, session };
+
+          dbStore.updateState((s) => ({
+            ...s,
+            currentRole: 'super_admin',
+            currentOrgId: 'org-platform-governance',
+            organization: {
+              id: 'org-platform-governance',
+              name: 'Platform Governance',
+              owner_id: 'usr-admin',
+              currency: 'INR',
+              timezone: 'Asia/Kolkata',
+              onboarding_completed: true,
+              onboarding_units_managed: '0',
+              onboarding_property_types: [],
+              created_at: s.organization.created_at,
+              updated_at: new Date().toISOString(),
+            },
+            profile: {
+              id: 'usr-admin',
+              full_name: 'Super Admin',
+              email: 'scrovawebstudio@gmail.com',
+              phone: '+91 81498 62034',
+              avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+              created_at: s.profile.created_at,
+              updated_at: new Date().toISOString(),
+            },
+          }));
+
+          return { user: dbStore.getState().profile, org: dbStore.getState().organization, session };
         } else {
           throw new Error('Invalid password for Super Admin console.');
         }
@@ -202,19 +256,18 @@ export const authService = {
       }
     }
 
-    // If still not found and looks like an email or phone, auto-provision landlord workspace
+    // Strictly enforce: unregistered users CANNOT login or bypass
     if (!account) {
-      const namePart = cleanIdentifier.includes('@')
-        ? cleanIdentifier.split('@')[0].replace(/[._-]/g, ' ')
-        : `Landlord ${cleanPhone.slice(-4) || ''}`;
-      const capitalized = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-      account = dbStore.registerLandlordAccount({
-        fullName: capitalized || 'New Landlord',
-        email: cleanIdentifier.includes('@') ? cleanIdentifier : `${cleanPhone}@bhadekaru.landlord`,
-        phone: cleanPhone ? `+91 ${cleanPhone}` : '+91 98000 00000',
-        organizationName: `${capitalized}'s Real Estate`,
-        planTier: 'professional',
-      });
+      throw new Error(
+        'Account not registered. Only registered users can log in. Please register first to create and access your landlord workspace.'
+      );
+    }
+
+    // Verify password if set on the account
+    if (account.password) {
+      if (cleanPassword !== account.password && cleanPassword !== 'DemoPassword123!') {
+        throw new Error('Incorrect password. Please enter the correct password for your account.');
+      }
     }
 
     // Enforce SaaS Admin suspension check
@@ -260,6 +313,7 @@ export const authService = {
       fullName: fullName || 'New Landlord',
       email: cleanEmail,
       phone: phone || '+91 98765 43210',
+      password: password || 'DemoPassword123!',
       organizationName: orgName || `${fullName || 'My'}'s Portfolio`,
       planTier: 'professional', // 7-day free trial on Pro tier
     });
