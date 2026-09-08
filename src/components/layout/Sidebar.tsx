@@ -20,6 +20,7 @@ import {
   Shield
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { PWAInstallButton } from '../pwa/PWAInstallButton';
 
 export interface SidebarProps {
   isSuperAdmin?: boolean;
@@ -182,7 +183,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Footer Info Card */}
-      <div className="p-3 border-t border-slate-800/80 bg-slate-950/40">
+      <div className="p-3 border-t border-slate-800/80 bg-slate-950/40 space-y-2.5">
+        <PWAInstallButton variant="sidebar" />
+
         {isSuperAdmin ? (
           <div className="p-3 bg-indigo-950/40 rounded-xl border border-indigo-900/60 text-xs">
             <div className="flex items-center gap-2 mb-1.5">

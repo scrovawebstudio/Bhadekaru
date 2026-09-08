@@ -4,7 +4,8 @@ import { authService } from '../../services/authService';
 import { dbStore } from '../../lib/store';
 import { googleDriveService, DriveSyncStatus } from '../../services/googleDriveService';
 import { GoogleDriveModal } from '../../components/drive/GoogleDriveModal';
-import { Settings, User, Building2, Globe, Database, Download, RotateCcw, ShieldCheck, Check, Cloud, CloudCheck, UploadCloud, RefreshCw, ExternalLink, HardDrive } from 'lucide-react';
+import { PWAInstallModal } from '../../components/pwa/PWAInstallModal';
+import { Settings, User, Building2, Globe, Database, Download, RotateCcw, ShieldCheck, Check, Cloud, CloudCheck, UploadCloud, RefreshCw, ExternalLink, HardDrive, Smartphone } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Input';
 import { Card } from '../../components/ui/Card';
@@ -26,6 +27,7 @@ export const SettingsPage: React.FC = () => {
   const [timezone, setTimezone] = useState(organization?.timezone || 'Asia/Kolkata');
   const [isSaving, setIsSaving] = useState(false);
   const [showDriveModal, setShowDriveModal] = useState(false);
+  const [showPwaModal, setShowPwaModal] = useState(false);
   const [driveStatus, setDriveStatus] = useState<DriveSyncStatus>(googleDriveService.getStatus());
   const [isDriveSyncing, setIsDriveSyncing] = useState(false);
 
@@ -286,8 +288,34 @@ export const SettingsPage: React.FC = () => {
         </div>
       </Card>
 
+      {/* Mobile Application (PWA) */}
+      <Card>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Smartphone className="w-4 h-4 text-sky-600" />
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Mobile Application (Android & iOS)</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Install Bhadekaru on your phone or tablet for instant access, home screen launching, and offline usage.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPwaModal(true)}
+            leftIcon={<Download className="w-4 h-4" />}
+          >
+            Install App Guide
+          </Button>
+        </div>
+      </Card>
+
       {/* Google Drive Modal */}
       <GoogleDriveModal isOpen={showDriveModal} onClose={() => setShowDriveModal(false)} />
+
+      {/* PWA Installation Modal */}
+      <PWAInstallModal isOpen={showPwaModal} onClose={() => setShowPwaModal(false)} />
     </div>
   );
 };

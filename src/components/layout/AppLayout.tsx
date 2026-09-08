@@ -3,7 +3,7 @@ import { Outlet, useNavigate, Navigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { MobileBottomNav, QuickActionsModal } from './MobileBottomNav';
-import { NetworkStatus, PWAInstallBanner } from '../feedback/NetworkStatus';
+import { NetworkStatus } from '../feedback/NetworkStatus';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authService } from '../../services/authService';
 import { notificationService } from '../../services/documentService';
@@ -78,7 +78,6 @@ export const AppLayout: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col antialiased">
       <NetworkStatus />
-      <PWAInstallBanner />
 
       <div className="flex-1 flex flex-row overflow-hidden">
         {/* Desktop Sidebar */}
@@ -120,6 +119,7 @@ export const AppLayout: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+          <NetworkStatus />
           <Topbar
             isSuperAdmin={session.role === 'super_admin'}
             organizationName={organization?.name}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Bell, Plus, User, Menu, X, CheckCircle2, ChevronDown, Shield, Building2, ExternalLink, Cloud, CloudCheck, LogOut, Settings, Crown } from 'lucide-react';
+import { Search, Bell, Plus, User, Menu, X, CheckCircle2, ChevronDown, Shield, Building2, ExternalLink, Cloud, CloudCheck, LogOut, Settings, Crown, Download } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { AppNotification, LandlordAccount } from '../../types/database.types';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { googleDriveService, DriveSyncStatus } from '../../services/googleDriveS
 import { GoogleDriveModal } from '../drive/GoogleDriveModal';
 import { authService } from '../../services/authService';
 import { cn } from '../../lib/utils';
+import { PWAInstallModal } from '../pwa/PWAInstallModal';
 
 export interface TopbarProps {
   isSuperAdmin?: boolean;
@@ -33,6 +34,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showDriveModal, setShowDriveModal] = useState(false);
+  const [showPwaModal, setShowPwaModal] = useState(false);
   const [driveStatus, setDriveStatus] = useState<DriveSyncStatus>(googleDriveService.getStatus());
   const navigate = useNavigate();
 
@@ -258,6 +260,17 @@ export const Topbar: React.FC<TopbarProps> = ({
                       <Crown className="w-3.5 h-3.5 text-amber-500" />
                       <span>My Subscription Plan</span>
                     </button>
+
+                    <button
+                      onClick={() => {
+                        setShowUserDropdown(false);
+                        setShowPwaModal(true);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors text-left"
+                    >
+                      <Download className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Install Mobile App</span>
+                    </button>
                   </>
                 )}
 
@@ -280,6 +293,9 @@ export const Topbar: React.FC<TopbarProps> = ({
       {!isSuperAdmin && (
         <GoogleDriveModal isOpen={showDriveModal} onClose={() => setShowDriveModal(false)} />
       )}
+
+      {/* PWA Download / Installation Modal */}
+      <PWAInstallModal isOpen={showPwaModal} onClose={() => setShowPwaModal(false)} />
     </header>
   );
 };
