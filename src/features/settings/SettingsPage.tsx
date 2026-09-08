@@ -5,6 +5,8 @@ import { dbStore } from '../../lib/store';
 import { googleDriveService, DriveSyncStatus } from '../../services/googleDriveService';
 import { GoogleDriveModal } from '../../components/drive/GoogleDriveModal';
 import { PWAInstallModal } from '../../components/pwa/PWAInstallModal';
+import { CloudSyncModal } from '../../components/sync/CloudSyncModal';
+import { useCloudSync } from '../../hooks/useCloudSync';
 import { Settings, User, Building2, Globe, Database, Download, RotateCcw, ShieldCheck, Check, Cloud, CloudCheck, UploadCloud, RefreshCw, ExternalLink, HardDrive, Smartphone } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Input, Select } from '../../components/ui/Input';
@@ -28,6 +30,8 @@ export const SettingsPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [showDriveModal, setShowDriveModal] = useState(false);
   const [showPwaModal, setShowPwaModal] = useState(false);
+  const [showCloudSyncModal, setShowCloudSyncModal] = useState(false);
+  const { status: cloudSyncStatus, lastSyncedAt, deviceInfo, syncNow: triggerCloudSync } = useCloudSync();
   const [driveStatus, setDriveStatus] = useState<DriveSyncStatus>(googleDriveService.getStatus());
   const [isDriveSyncing, setIsDriveSyncing] = useState(false);
 
@@ -288,7 +292,58 @@ export const SettingsPage: React.FC = () => {
         </div>
       </Card>
 
-      {/* Mobile Application (PWA) */}
+      {/* Mobile & Web Real-Time Cloud Synchronization */}
+      <Card>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+              cloudSyncStatus === 'synced'
+                ? 'bg-emerald-100 text-emerald-700'
+                : cloudSyncStatus === 'syncing'
+                ? 'bg-sky-100 text-sky-700'
+                : 'bg-amber-100 text-amber-700'
+            }`}>
+              <Cloud className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900">Mobile & Web Real-Time Cloud Sync</h3>
+                <Badge variant={cloudSyncStatus === 'synced' ? 'success' : cloudSyncStatus === 'syncing' ? 'info' : 'warning'}>
+                  {cloudSyncStatus === 'synced' ? 'In Sync' : cloudSyncStatus === 'syncing' ? 'Syncing...' : 'Pending'}
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Seamlessly mirrors all property units, tenant profiles, rent payments, and documents between your mobile phone and web browser.
+              </p>
+              <div className="flex items-center gap-4 mt-2 text-[11px] text-slate-500 font-medium">
+                <span>Platform: <strong className="text-slate-800 capitalize">{deviceInfo.isNative ? `Capacitor (${deviceInfo.platform})` : 'Web Browser'}</strong></span>
+                <span>•</span>
+                <span>{lastSyncedAt ? `Last Synced: ${new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Auto-Sync Active'}</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => triggerCloudSync()}
+              isLoading={cloudSyncStatus === 'syncing'}
+              leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+            >
+              Sync Now
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowCloudSyncModal(true)}
+            >
+              Sync Settings
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Mobile Application (PWA & Native Capacitor) */}
       <Card>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -314,8 +369,11 @@ export const SettingsPage: React.FC = () => {
       {/* Google Drive Modal */}
       <GoogleDriveModal isOpen={showDriveModal} onClose={() => setShowDriveModal(false)} />
 
-      {/* PWA Installation Modal */}
+      {/* PWA & Capacitor Installation Modal */}
       <PWAInstallModal isOpen={showPwaModal} onClose={() => setShowPwaModal(false)} />
+
+      {/* Mobile & Web Cloud Sync Modal */}
+      <CloudSyncModal isOpen={showCloudSyncModal} onClose={() => setShowCloudSyncModal(false)} />
     </div>
   );
 };

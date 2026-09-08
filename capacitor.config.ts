@@ -1,0 +1,25 @@
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'app.bhadekaru.landlord',
+  appName: 'Bhadekaru — Property & Tenant Management',
+  webDir: 'dist',
+  server: {
+    androidScheme: 'https',
+    cleartext: true,
+  },
+  plugins: {
+    SplashScreen: {
+      launchAutoHide: true,
+      launchShowDuration: 1500,
+      backgroundColor: '#0284c7',
+      showSpinner: false,
+    },
+    StatusBar: {
+      backgroundColor: '#0284c7',
+      style: 'DARK',
+    },
+  },
+};
+
+export default config;

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Bhadekaru — Property &amp; Tenant Management</string>
+    <string name="title_activity_main">Bhadekaru — Property &amp; Tenant Management</string>
+    <string name="package_name">app.bhadekaru.landlord</string>
+    <string name="custom_url_scheme">app.bhadekaru.landlord</string>
+</resources>

@@ -25,6 +25,8 @@ import { OnboardingWizard } from './features/onboarding/OnboardingWizard';
 import { LoginPage, RegisterPage } from './features/auth/LoginPage';
 import { authService } from './services/authService';
 import { dbStore } from './lib/store';
+import { capacitorService } from './services/capacitorService';
+import { cloudSyncService } from './services/cloudSyncService';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -74,12 +76,39 @@ const ProtectedLayout: React.FC = () => {
 };
 
 export default function App() {
+  const [isInitializing, setIsInitializing] = React.useState(true);
+
   React.useEffect(() => {
+    // Restore persistent session from native Android storage / localStorage
+    authService.initPersistentSession().finally(() => {
+      setIsInitializing(false);
+    });
+
+    // Initialize Capacitor native platform handlers
+    capacitorService.initNativeFeatures(() => {
+      cloudSyncService.checkAndPull();
+    });
+
+    // Initialize real-time cloud synchronization between Web and Mobile
+    cloudSyncService.init();
+
     const unsubscribe = dbStore.subscribe(() => {
       queryClient.invalidateQueries();
     });
     return unsubscribe;
   }, []);
+
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white selection:bg-sky-500">
+        <div className="w-14 h-14 rounded-2xl bg-sky-500 text-white flex items-center justify-center font-black text-3xl shadow-xl shadow-sky-500/30 animate-pulse">
+          भा
+        </div>
+        <p className="mt-4 text-xs font-bold text-slate-300 tracking-wider">भाडेकरू • Bhadekaru</p>
+        <p className="text-[11px] text-slate-500 mt-1">Connecting secure workspace session...</p>
+      </div>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -13,6 +13,9 @@ import {
   Chrome,
   MoreVertical,
   ExternalLink,
+  Cpu,
+  RefreshCw,
+  Terminal,
 } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { Button } from '../ui/Button';
@@ -24,7 +27,7 @@ interface PWAInstallModalProps {
 
 export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClose }) => {
   const { isInstallable, isInstalled, isIOS, isAndroid, install } = usePWAInstall();
-  const [activeTab, setActiveTab] = useState<'android' | 'ios'>(isIOS ? 'ios' : 'android');
+  const [activeTab, setActiveTab] = useState<'android' | 'ios' | 'capacitor'>(isIOS ? 'ios' : 'android');
   const [installSuccess, setInstallSuccess] = useState(false);
 
   if (!isOpen) return null;
@@ -92,25 +95,36 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
         <div className="flex rounded-xl bg-slate-100 p-1 mb-5">
           <button
             onClick={() => setActiveTab('android')}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition ${
+            className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition ${
               activeTab === 'android'
                 ? 'bg-white text-sky-700 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Smartphone className="w-4 h-4 text-emerald-600" />
-            <span>Android (APK / PWA)</span>
+            <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Android</span>
           </button>
           <button
             onClick={() => setActiveTab('ios')}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition ${
+            className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition ${
               activeTab === 'ios'
                 ? 'bg-white text-sky-700 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Apple className="w-4 h-4 text-slate-800" />
-            <span>iPhone / iPad (iOS)</span>
+            <Apple className="w-3.5 h-3.5 text-slate-800" />
+            <span>iOS (Apple)</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('capacitor')}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition ${
+              activeTab === 'capacitor'
+                ? 'bg-white text-sky-700 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Cpu className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Capacitor Native</span>
           </button>
         </div>
 
@@ -220,6 +234,46 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
                 <span className="text-slate-500">
                   Scroll down the share sheet and tap <strong>Add to Home Screen</strong>, then tap <strong>Add</strong> in the top right.
                 </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Capacitor Native App Tab Content */}
+        {activeTab === 'capacitor' && (
+          <div className="space-y-3 text-left">
+            <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-2xl space-y-2">
+              <div className="flex items-center gap-2 text-indigo-950 font-bold text-xs">
+                <Cpu className="w-4 h-4 text-indigo-600 shrink-0" />
+                <span>Capacitor Native Android Project Ready</span>
+              </div>
+              <p className="text-[11px] text-indigo-800">
+                This project is fully configured with Capacitor 8 and native Android files in <code className="font-mono bg-white/70 px-1 py-0.5 rounded text-indigo-900 font-bold">/android</code>.
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
+                Real-Time Cloud Synchronization
+              </span>
+              <p className="text-[11px] text-slate-600">
+                Data added or edited in the native mobile app automatically synchronizes with the web version and vice versa. Offline edits are securely queued and synced as soon as internet is detected.
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-900 text-slate-100 rounded-2xl space-y-2 text-xs font-mono">
+              <div className="flex items-center gap-2 text-slate-400 text-[11px] font-sans font-semibold border-b border-slate-800 pb-1.5">
+                <Terminal className="w-3.5 h-3.5 text-sky-400" />
+                <span>Build & Run Native Mobile App</span>
+              </div>
+              <p className="text-slate-400 text-[11px] font-sans">1. Build web bundle and sync native assets:</p>
+              <div className="bg-slate-950 px-2.5 py-1.5 rounded-lg text-emerald-400 select-all">
+                npm run build && npx cap sync
+              </div>
+              <p className="text-slate-400 text-[11px] font-sans">2. Open in Android Studio to build APK / AAB:</p>
+              <div className="bg-slate-950 px-2.5 py-1.5 rounded-lg text-sky-400 select-all">
+                npx cap open android
               </div>
             </div>
           </div>

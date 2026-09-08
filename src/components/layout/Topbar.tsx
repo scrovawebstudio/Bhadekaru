@@ -9,6 +9,7 @@ import { GoogleDriveModal } from '../drive/GoogleDriveModal';
 import { authService } from '../../services/authService';
 import { cn } from '../../lib/utils';
 import { PWAInstallModal } from '../pwa/PWAInstallModal';
+import { CloudSyncStatusButton } from '../sync/CloudSyncStatusButton';
 
 export interface TopbarProps {
   isSuperAdmin?: boolean;
@@ -95,6 +96,9 @@ export const Topbar: React.FC<TopbarProps> = ({
       <div className="flex items-center gap-2 md:gap-3">
         {!isSuperAdmin && (
           <>
+            {/* Real-time Cloud Sync Button (Mobile & Web) */}
+            <CloudSyncStatusButton />
+
             {/* Google Drive BYOS Sync Button */}
             <button
               onClick={() => setShowDriveModal(true)}

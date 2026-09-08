@@ -1,9 +1,12 @@
+import { Preferences } from '@capacitor/preferences';
 import { dbStore } from '../lib/store';
-import { Profile, Organization, LandlordAccount } from '../types/database.types';
+import { Profile, Organization } from '../types/database.types';
+import { apiService } from './apiService';
 
 export interface AuthSession {
   userId: string;
   email: string;
+  phone?: string;
   fullName: string;
   role: 'super_admin' | 'landlord' | 'manager';
   organizationId: string;
@@ -14,6 +17,7 @@ export interface AuthSession {
 const SESSION_KEY = 'bhadekaru_current_auth_session';
 
 export const authService = {
+  // Sync reading of session for immediate rendering
   getCurrentSession(): AuthSession | null {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
@@ -24,8 +28,240 @@ export const authService = {
     }
   },
 
+  // Async reading from native Capacitor Preferences (Android SharedPreferences) + localStorage
+  async getPersistentSession(): Promise<AuthSession | null> {
+    try {
+      const { value } = await Preferences.get({ key: SESSION_KEY });
+      if (value) {
+        return JSON.parse(value);
+      }
+    } catch {
+      // ignore
+    }
+    return this.getCurrentSession();
+  },
+
+  async saveSessionLocally(session: AuthSession): Promise<void> {
+    const json = JSON.stringify(session);
+    localStorage.setItem(SESSION_KEY, json);
+    try {
+      await Preferences.set({ key: SESSION_KEY, value: json });
+    } catch {
+      // ignore
+    }
+  },
+
+  async clearSessionLocally(): Promise<void> {
+    localStorage.removeItem(SESSION_KEY);
+    try {
+      await Preferences.remove({ key: SESSION_KEY });
+    } catch {
+      // ignore
+    }
+  },
+
   isAuthenticated(): boolean {
     return !!this.getCurrentSession();
+  },
+
+  // Initialize session on app startup (Android and Web)
+  // Keeps the user logged in across app close/reopen
+  async initPersistentSession(): Promise<AuthSession | null> {
+    await apiService.init();
+    const session = await this.getPersistentSession();
+
+    if (!session) {
+      return null;
+    }
+
+    // Validate with backend API
+    const validation = await apiService.validateSession();
+    if (!validation.valid) {
+      // If server explicitly declared session invalid, clear it
+      await this.clearSessionLocally();
+      return null;
+    }
+
+    // Keep localStorage in sync
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+
+    // Restore store state
+    if (session.role === 'super_admin') {
+      dbStore.updateState((s) => ({
+        ...s,
+        currentRole: 'super_admin',
+        currentOrgId: session.organizationId,
+        organization: {
+          id: session.organizationId,
+          name: session.organizationName,
+          owner_id: session.userId,
+          currency: 'INR',
+          timezone: 'Asia/Kolkata',
+          onboarding_completed: true,
+          onboarding_units_managed: '0',
+          onboarding_property_types: [],
+          created_at: s.organization.created_at,
+          updated_at: new Date().toISOString(),
+        },
+        profile: {
+          id: session.userId,
+          full_name: session.fullName,
+          email: session.email,
+          phone: session.phone || '+91 81498 62034',
+          avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+          created_at: s.profile.created_at,
+          updated_at: new Date().toISOString(),
+        },
+      }));
+    } else {
+      dbStore.switchOrganization(session.organizationId);
+
+      // Attempt to load isolated server database state into store
+      try {
+        const remoteData = await apiService.getOrgData();
+        if (remoteData && remoteData.properties) {
+          dbStore.updateState((s) => ({
+            ...s,
+            ...remoteData,
+            currentOrgId: session.organizationId,
+            currentRole: 'landlord',
+          }));
+        }
+      } catch {
+        // use local cached store
+      }
+    }
+
+    return session;
+  },
+
+  // 1. Check phone number before asking for password
+  async lookupAccount(identifier: string) {
+    return apiService.lookupAccount(identifier);
+  },
+
+  // 2. Strict login verified via backend API
+  async login(identifier: string, password?: string): Promise<{ user: Profile; org: Organization; session: AuthSession }> {
+    if (!password) {
+      throw new Error('Password is required');
+    }
+
+    // Call backend API login endpoint
+    const res = await apiService.login(identifier, password);
+    const s = res.session;
+
+    const session: AuthSession = {
+      userId: s.userId,
+      email: s.email,
+      phone: s.phone,
+      fullName: s.fullName,
+      role: s.role,
+      organizationId: s.organizationId,
+      organizationName: s.organizationName,
+      loginTime: s.createdAt || new Date().toISOString(),
+    };
+
+    // Save session persistently for Android & Web
+    await this.saveSessionLocally(session);
+
+    if (session.role === 'super_admin') {
+      dbStore.updateState((st) => ({
+        ...st,
+        currentRole: 'super_admin',
+        currentOrgId: session.organizationId,
+        organization: {
+          id: session.organizationId,
+          name: session.organizationName,
+          owner_id: session.userId,
+          currency: 'INR',
+          timezone: 'Asia/Kolkata',
+          onboarding_completed: true,
+          onboarding_units_managed: '0',
+          onboarding_property_types: [],
+          created_at: st.organization.created_at,
+          updated_at: new Date().toISOString(),
+        },
+        profile: {
+          id: session.userId,
+          full_name: session.fullName,
+          email: session.email,
+          phone: session.phone || '+91 81498 62034',
+          avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+          created_at: st.profile.created_at,
+          updated_at: new Date().toISOString(),
+        },
+      }));
+      return { user: dbStore.getState().profile, org: dbStore.getState().organization, session };
+    }
+
+    // Switch landlord organization in store
+    dbStore.switchOrganization(session.organizationId);
+
+    // Try fetching fresh isolated data from server
+    try {
+      const remoteData = await apiService.getOrgData();
+      if (remoteData && remoteData.properties) {
+        dbStore.updateState((st) => ({
+          ...st,
+          ...remoteData,
+          currentOrgId: session.organizationId,
+          currentRole: 'landlord',
+        }));
+      }
+    } catch {
+      // ignore
+    }
+
+    const updatedState = dbStore.getState();
+    return { user: updatedState.profile, org: updatedState.organization, session };
+  },
+
+  // 3. Register
+  async register(
+    email: string,
+    password?: string,
+    fullName?: string,
+    phone?: string,
+    orgName?: string
+  ): Promise<{ user: Profile; org: Organization; session: AuthSession }> {
+    const res = await apiService.register({
+      email,
+      password,
+      fullName,
+      phone,
+      organizationName: orgName,
+    });
+
+    const s = res.session;
+    const session: AuthSession = {
+      userId: s.userId,
+      email: s.email,
+      phone: s.phone,
+      fullName: s.fullName,
+      role: s.role,
+      organizationId: s.organizationId,
+      organizationName: s.organizationName,
+      loginTime: s.createdAt || new Date().toISOString(),
+    };
+
+    await this.saveSessionLocally(session);
+    dbStore.registerLandlordAccount({
+      fullName: session.fullName,
+      email: session.email,
+      phone: session.phone || '+91 98765 43210',
+      password: password || 'DemoPassword123!',
+      organizationName: session.organizationName,
+      planTier: 'professional',
+    });
+
+    dbStore.switchOrganization(session.organizationId);
+    const state = dbStore.getState();
+    return { user: state.profile, org: state.organization, session };
+  },
+
+  async logout(): Promise<void> {
+    await apiService.logout();
+    await this.clearSessionLocally();
   },
 
   async getProfile(): Promise<Profile> {
@@ -41,6 +277,8 @@ export const authService = {
         updated_at: new Date().toISOString(),
       },
     })).profile;
+    // Persist to server
+    apiService.saveOrgData(dbStore.getState()).catch(() => {});
     return updated;
   },
 
@@ -57,6 +295,8 @@ export const authService = {
         updated_at: new Date().toISOString(),
       },
     })).organization;
+    // Persist to server
+    apiService.saveOrgData(dbStore.getState()).catch(() => {});
     return updated;
   },
 
@@ -103,6 +343,8 @@ export const authService = {
           maintenance_charge: 1000,
           parking_included: true,
           status: 'vacant',
+          bedrooms: 2,
+          bathrooms: 2,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
@@ -121,219 +363,7 @@ export const authService = {
         },
       };
     });
-  },
 
-  async login(identifier: string, password?: string): Promise<{ user: Profile; org: Organization; session: AuthSession }> {
-    const cleanIdentifier = identifier.trim().toLowerCase();
-    const cleanPhone = cleanIdentifier.replace(/[^0-9]/g, '');
-    const cleanPassword = password ? password.trim() : '';
-
-    // Check if the user is attempting to log in as Super Admin
-    const isSuperAdminIdentifier =
-      cleanPhone === '8149862034' ||
-      cleanPhone.endsWith('8149862034') ||
-      cleanIdentifier === '8149862034' ||
-      cleanIdentifier === 'scrovawebstudio@gmail.com' ||
-      cleanIdentifier === 'admin@bhadekaru.app';
-
-    if (isSuperAdminIdentifier) {
-      // 1. Try server-side authentication endpoint first (reads .env variables securely)
-      try {
-        const response = await fetch('/api/admin/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ identifier: cleanIdentifier, password: cleanPassword }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.user) {
-            const session: AuthSession = {
-              userId: data.user.userId || 'usr-admin',
-              email: data.user.email || 'scrovawebstudio@gmail.com',
-              fullName: data.user.fullName || 'Super Admin',
-              role: 'super_admin',
-              organizationId: 'org-platform-governance',
-              organizationName: 'Platform Governance',
-              loginTime: new Date().toISOString(),
-            };
-            localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-
-            dbStore.updateState((s) => ({
-              ...s,
-              currentRole: 'super_admin',
-              currentOrgId: 'org-platform-governance',
-              organization: {
-                id: 'org-platform-governance',
-                name: 'Platform Governance',
-                owner_id: 'usr-admin',
-                currency: 'INR',
-                timezone: 'Asia/Kolkata',
-                onboarding_completed: true,
-                onboarding_units_managed: '0',
-                onboarding_property_types: [],
-                created_at: s.organization.created_at,
-                updated_at: new Date().toISOString(),
-              },
-              profile: {
-                id: 'usr-admin',
-                full_name: 'Super Admin',
-                email: 'scrovawebstudio@gmail.com',
-                phone: '+91 81498 62034',
-                avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-                created_at: s.profile.created_at,
-                updated_at: new Date().toISOString(),
-              },
-            }));
-
-            return { user: dbStore.getState().profile, org: dbStore.getState().organization, session };
-          }
-        } else if (response.status === 401) {
-          throw new Error('Invalid Super Admin password. Please enter the correct PIN/password.');
-        }
-      } catch (err: any) {
-        if (err.message && err.message.includes('Super Admin')) {
-          throw err;
-        }
-        // Fallback in case server endpoint is unavailable during client-side dev
-        if (cleanPassword === '814986' || cleanPassword === 'DemoPassword123!') {
-          const session: AuthSession = {
-            userId: 'usr-admin',
-            email: 'scrovawebstudio@gmail.com',
-            fullName: 'Super Admin',
-            role: 'super_admin',
-            organizationId: 'org-platform-governance',
-            organizationName: 'Platform Governance',
-            loginTime: new Date().toISOString(),
-          };
-          localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-
-          dbStore.updateState((s) => ({
-            ...s,
-            currentRole: 'super_admin',
-            currentOrgId: 'org-platform-governance',
-            organization: {
-              id: 'org-platform-governance',
-              name: 'Platform Governance',
-              owner_id: 'usr-admin',
-              currency: 'INR',
-              timezone: 'Asia/Kolkata',
-              onboarding_completed: true,
-              onboarding_units_managed: '0',
-              onboarding_property_types: [],
-              created_at: s.organization.created_at,
-              updated_at: new Date().toISOString(),
-            },
-            profile: {
-              id: 'usr-admin',
-              full_name: 'Super Admin',
-              email: 'scrovawebstudio@gmail.com',
-              phone: '+91 81498 62034',
-              avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-              created_at: s.profile.created_at,
-              updated_at: new Date().toISOString(),
-            },
-          }));
-
-          return { user: dbStore.getState().profile, org: dbStore.getState().organization, session };
-        } else {
-          throw new Error('Invalid password for Super Admin console.');
-        }
-      }
-    }
-
-    // Regular Landlord account lookup (by email or phone number)
-    let account = dbStore.findAccountByIdentifier(cleanIdentifier);
-
-    if (!account) {
-      // Fallback: check current profile email or phone
-      const state = dbStore.getState();
-      if (
-        state.profile.email.toLowerCase() === cleanIdentifier ||
-        state.profile.phone.replace(/[^0-9]/g, '') === cleanPhone
-      ) {
-        account = dbStore.getLandlordAccountById(state.currentOrgId);
-      }
-    }
-
-    // Strictly enforce: unregistered users CANNOT login or bypass
-    if (!account) {
-      throw new Error(
-        'Account not registered. Only registered users can log in. Please register first to create and access your landlord workspace.'
-      );
-    }
-
-    // Verify password if set on the account
-    if (account.password) {
-      if (cleanPassword !== account.password && cleanPassword !== 'DemoPassword123!') {
-        throw new Error('Incorrect password. Please enter the correct password for your account.');
-      }
-    }
-
-    // Enforce SaaS Admin suspension check
-    if (account.is_suspended || account.status === 'suspended') {
-      throw new Error(
-        `ACCOUNT_SUSPENDED: ${account.suspension_reason || 'This landlord account has been suspended by the platform administrator. Please contact admin@bhadekaru.app for assistance.'}`
-      );
-    }
-
-    // Switch active organization context
-    dbStore.switchOrganization(account.id);
-    const updatedState = dbStore.getState();
-
-    const session: AuthSession = {
-      userId: account.owner_id,
-      email: account.owner_email,
-      fullName: account.owner_name,
-      role: 'landlord',
-      organizationId: account.id,
-      organizationName: account.organization_name,
-      loginTime: new Date().toISOString(),
-    };
-
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    return { user: updatedState.profile, org: updatedState.organization, session };
-  },
-
-  async register(
-    email: string,
-    password?: string,
-    fullName?: string,
-    phone?: string,
-    orgName?: string
-  ): Promise<{ user: Profile; org: Organization; session: AuthSession }> {
-    const cleanEmail = email.trim().toLowerCase();
-    const existing = dbStore.findAccountByEmail(cleanEmail);
-
-    if (existing) {
-      throw new Error('An account with this email address already exists. Please log in instead.');
-    }
-
-    const account = dbStore.registerLandlordAccount({
-      fullName: fullName || 'New Landlord',
-      email: cleanEmail,
-      phone: phone || '+91 98765 43210',
-      password: password || 'DemoPassword123!',
-      organizationName: orgName || `${fullName || 'My'}'s Portfolio`,
-      planTier: 'professional', // 7-day free trial on Pro tier
-    });
-
-    const state = dbStore.getState();
-    const session: AuthSession = {
-      userId: account.owner_id,
-      email: account.owner_email,
-      fullName: account.owner_name,
-      role: 'landlord',
-      organizationId: account.id,
-      organizationName: account.organization_name,
-      loginTime: new Date().toISOString(),
-    };
-
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    return { user: state.profile, org: state.organization, session };
-  },
-
-  async logout(): Promise<void> {
-    localStorage.removeItem(SESSION_KEY);
+    apiService.saveOrgData(dbStore.getState()).catch(() => {});
   },
 };

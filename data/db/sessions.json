@@ -1,0 +1,26 @@
+{
+  "bhk_a359d98c1b27036e41ee1e33f698439e36c2b465174bb8de0c975ffedd5d48e4": {
+    "token": "bhk_a359d98c1b27036e41ee1e33f698439e36c2b465174bb8de0c975ffedd5d48e4",
+    "userId": "usr-1001",
+    "email": "landlord@bhadekaru.app",
+    "phone": "+91 98230 45678",
+    "fullName": "Rajesh Patil",
+    "role": "landlord",
+    "organizationId": "org-2001",
+    "organizationName": "Patil Real Estate & Rentals",
+    "createdAt": "2026-09-08T08:50:46.061Z",
+    "expiresAt": "2027-09-08T08:50:46.061Z"
+  },
+  "bhk_daf34ff49c4d25e39715586879154088228bf1bc4a7e25558cb5a7b0e5de76f9": {
+    "token": "bhk_daf34ff49c4d25e39715586879154088228bf1bc4a7e25558cb5a7b0e5de76f9",
+    "userId": "usr-super-admin",
+    "email": "sujitgajare@gmail.com",
+    "phone": "8149862034",
+    "fullName": "Super Admin",
+    "role": "super_admin",
+    "organizationId": "org-platform-admin",
+    "organizationName": "Bhadekaru Platform Governance",
+    "createdAt": "2026-09-08T08:52:49.256Z",
+    "expiresAt": "2027-09-08T08:52:49.256Z"
+  }
+}
