@@ -25,6 +25,7 @@ class CloudSyncService {
   private error?: string;
   private syncTimeout: any = null;
   private isProcessing = false;
+  private isPulling = false;
   private customServerUrl: string = '';
   private initialized = false;
 
@@ -144,6 +145,12 @@ class CloudSyncService {
   }
 
   private scheduleAutoPush() {
+    if (this.isPulling) return;
+    const state = dbStore.getState();
+    if (state.currentRole === 'super_admin' || state.currentOrgId === 'org-platform-admin') {
+      return;
+    }
+
     // Backup to native preferences immediately for offline durability
     this.backupToNativePreferences();
 
@@ -153,7 +160,7 @@ class CloudSyncService {
 
     this.syncTimeout = setTimeout(() => {
       this.pushCurrentState();
-    }, 1500);
+    }, 2000);
   }
 
   private async backupToNativePreferences() {
@@ -193,7 +200,12 @@ class CloudSyncService {
       return false;
     }
 
-    const orgId = dbStore.getState().currentOrgId || 'org-2001';
+    const state = dbStore.getState();
+    if (state.currentRole === 'super_admin' || state.currentOrgId === 'org-platform-admin') {
+      return false;
+    }
+
+    const orgId = state.currentOrgId || 'org-2001';
     const baseUrl = this.getServerUrl();
     const endpoint = `${baseUrl}/api/sync/status?orgId=${encodeURIComponent(orgId)}`;
 
@@ -217,13 +229,18 @@ class CloudSyncService {
       return false;
     }
 
+    const state = dbStore.getState();
+    if (state.currentRole === 'super_admin' || state.currentOrgId === 'org-platform-admin') {
+      return false;
+    }
+
     if (this.isProcessing) return false;
     this.isProcessing = true;
     this.status = 'syncing';
     this.error = undefined;
     this.notify();
 
-    const orgId = dbStore.getState().currentOrgId || 'org-2001';
+    const orgId = state.currentOrgId || 'org-2001';
     const baseUrl = this.getServerUrl();
     const endpoint = `${baseUrl}/api/sync/pull?orgId=${encodeURIComponent(orgId)}`;
 
@@ -240,16 +257,23 @@ class CloudSyncService {
         this.lastSyncedAt = data.lastModified || new Date().toISOString();
         this.lastModifiedByPlatform = data.lastModifiedByPlatform || 'web';
 
-        // Merge/update local DB
-        dbStore.updateState((current) => {
-          return {
-            ...current,
-            ...serverState,
-            // Keep active session credentials intact
-            currentRole: current.currentRole || serverState.currentRole,
-            currentOrgId: current.currentOrgId || serverState.currentOrgId,
-          };
-        });
+        // Suppress auto-push while applying incoming server state
+        this.isPulling = true;
+        try {
+          dbStore.updateState((current) => {
+            return {
+              ...current,
+              ...serverState,
+              // Keep active session credentials intact
+              currentRole: current.currentRole || serverState.currentRole,
+              currentOrgId: current.currentOrgId || serverState.currentOrgId,
+            };
+          });
+        } finally {
+          setTimeout(() => {
+            this.isPulling = false;
+          }, 300);
+        }
 
         await this.backupToNativePreferences();
         this.status = 'synced';
@@ -278,13 +302,17 @@ class CloudSyncService {
       return false;
     }
 
+    const state = dbStore.getState();
+    if (state.currentRole === 'super_admin' || state.currentOrgId === 'org-platform-admin') {
+      return false;
+    }
+
     if (this.isProcessing) return false;
     this.isProcessing = true;
     this.status = 'syncing';
     this.error = undefined;
     this.notify();
 
-    const state = dbStore.getState();
     const orgId = state.currentOrgId || 'org-2001';
     const baseUrl = this.getServerUrl();
     const endpoint = `${baseUrl}/api/sync/push`;
