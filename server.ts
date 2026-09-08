@@ -623,6 +623,7 @@ async function startServer() {
             '**/data/db/**',
             '**/data/sync/**',
             '**/data/**/*.json',
+            '**/android/**',
             '**/*.tmp',
           ],
         },

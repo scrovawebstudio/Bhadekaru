@@ -97,6 +97,7 @@ export default defineConfig(() => {
           '**/data/db/**',
           '**/data/sync/**',
           '**/data/**/*.json',
+          '**/android/**',
           '**/*.tmp',
         ],
       },

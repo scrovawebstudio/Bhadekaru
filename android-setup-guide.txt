@@ -1,0 +1,78 @@
+Step 1 — Open a second terminal in VS Code
+
+Keep your current npm run dev terminal running.
+
+Open another terminal and run:
+
+cd "E:\Free Lancing\Bhadekaru"
+
+Then check Capacitor:
+
+npx cap --version
+
+If it returns a version number, good.
+
+Step 2 — Build the React app
+
+Run:
+
+npm run build
+
+You should see a successful build and a dist folder created/updated.
+
+Step 3 — Check whether Android already exists
+
+Run:
+
+dir android
+
+If you see an android folder, do not run npx cap add android again.
+
+Instead run:
+
+npx cap sync android
+
+If there is no android folder, run:
+
+npx cap add android
+
+Then:
+
+npx cap sync android
+Step 4 — Open Android Studio
+
+Now run:
+
+npx cap open android
+
+This should launch Android Studio and open:
+
+E:\Free Lancing\Bhadekaru\android
+
+This is the project you build in Android Studio.
+
+Step 5 — Let Android Studio finish
+
+The first time, Android Studio may take a while to:
+
+Download Gradle
+Download Android SDK components
+Index the project
+Sync Gradle
+Download Capacitor Android dependencies
+
+Wait until the Gradle sync finishes successfully.
+
+Don't start changing random Gradle files if you get warnings. If you get an actual red error, send me the error.
+
+Step 6 — Generate your APK
+
+Once the project is successfully synced:
+
+Android Studio → Build → Generate App Bundles or APKs → Generate APKs
+
+For a basic testing APK, Android Studio will generate something like:
+
+E:\Free Lancing\Bhadekaru\android\app\build\outputs\apk\debug\app-debug.apk
+
+You can then install that APK on your Android phone.

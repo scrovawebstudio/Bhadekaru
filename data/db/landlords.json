@@ -63,5 +63,21 @@
     "state": "Goa",
     "created_at": "2026-02-20T08:50:30.129Z",
     "updated_at": "2026-09-08T08:50:30.129Z"
+  },
+  {
+    "id": "org-1788861361256",
+    "owner_id": "usr-1788861361256",
+    "owner_name": "Sujit",
+    "owner_email": "sujit@gmail.com",
+    "owner_phone": "8796751997",
+    "organization_name": "SG Estates",
+    "password": "asdfgh",
+    "plan_tier": "professional",
+    "status": "trialing",
+    "is_suspended": false,
+    "city": "Pune",
+    "state": "Maharashtra",
+    "created_at": "2026-09-08T09:56:01.256Z",
+    "updated_at": "2026-09-08T09:56:01.256Z"
   }
 ]

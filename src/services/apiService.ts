@@ -1,10 +1,27 @@
 import { Preferences } from '@capacitor/preferences';
+import { Capacitor } from '@capacitor/core';
 
 const TOKEN_KEY = 'bhadekaru_auth_token';
 const SESSION_KEY = 'bhadekaru_current_auth_session';
 
 class ApiService {
   private currentToken: string | null = null;
+
+  private getApiUrl(path: string): string {
+    const configuredUrl = (import.meta as any).env?.VITE_SERVER_URL?.trim();
+    const savedUrl = typeof window !== 'undefined' ? localStorage.getItem('bhadekaru_cloud_server_url') : null;
+    const baseUrl = (savedUrl || configuredUrl || '').replace(/\/+$/, '');
+
+    if (baseUrl) {
+      return `${baseUrl}${path}`;
+    }
+
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+      return `http://10.0.2.2:3000${path}`;
+    }
+
+    return path;
+  }
 
   async init(): Promise<string | null> {
     try {
@@ -86,7 +103,7 @@ class ApiService {
     suspensionReason?: string;
     message?: string;
   }> {
-    const res = await fetch('/api/auth/lookup', {
+    const res = await fetch(this.getApiUrl('/api/auth/lookup'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ identifier }),
@@ -108,7 +125,7 @@ class ApiService {
     session: any;
     message?: string;
   }> {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(this.getApiUrl('/api/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ identifier, password }),
@@ -129,7 +146,7 @@ class ApiService {
     if (!t) return { valid: false };
 
     try {
-      const res = await fetch('/api/auth/session', {
+      const res = await fetch(this.getApiUrl('/api/auth/session'), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -150,7 +167,7 @@ class ApiService {
   // 4. Logout
   async logout(): Promise<void> {
     try {
-      await fetch('/api/auth/logout', {
+      await fetch(this.getApiUrl('/api/auth/logout'), {
         method: 'POST',
         headers: this.getHeaders(),
       });
@@ -168,7 +185,7 @@ class ApiService {
     phone?: string;
     organizationName?: string;
   }): Promise<{ success: boolean; token: string; session: any }> {
-    const res = await fetch('/api/auth/register', {
+    const res = await fetch(this.getApiUrl('/api/auth/register'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -188,7 +205,7 @@ class ApiService {
   // ==========================================
 
   async getOrgData(): Promise<any> {
-    const res = await fetch('/api/data/org', {
+    const res = await fetch(this.getApiUrl('/api/data/org'), {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to load organization data');
@@ -197,7 +214,7 @@ class ApiService {
   }
 
   async saveOrgData(data: any): Promise<void> {
-    const res = await fetch('/api/data/org', {
+    const res = await fetch(this.getApiUrl('/api/data/org'), {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({ data }),
@@ -206,7 +223,7 @@ class ApiService {
   }
 
   async crudGet(collection: string): Promise<any[]> {
-    const res = await fetch(`/api/crud/${collection}`, {
+    const res = await fetch(this.getApiUrl(`/api/crud/${collection}`), {
       headers: this.getHeaders(),
     });
     if (!res.ok) return [];
@@ -215,7 +232,7 @@ class ApiService {
   }
 
   async crudCreate(collection: string, item: any): Promise<any> {
-    const res = await fetch(`/api/crud/${collection}`, {
+    const res = await fetch(this.getApiUrl(`/api/crud/${collection}`), {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(item),
@@ -226,7 +243,7 @@ class ApiService {
   }
 
   async crudUpdate(collection: string, id: string, updates: any): Promise<any> {
-    const res = await fetch(`/api/crud/${collection}/${id}`, {
+    const res = await fetch(this.getApiUrl(`/api/crud/${collection}/${id}`), {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify(updates),
@@ -237,7 +254,7 @@ class ApiService {
   }
 
   async crudDelete(collection: string, id: string): Promise<boolean> {
-    const res = await fetch(`/api/crud/${collection}/${id}`, {
+    const res = await fetch(this.getApiUrl(`/api/crud/${collection}/${id}`), {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
@@ -246,7 +263,7 @@ class ApiService {
 
   // Admin APIs
   async adminGetLandlords(): Promise<any[]> {
-    const res = await fetch('/api/admin/landlords', {
+    const res = await fetch(this.getApiUrl('/api/admin/landlords'), {
       headers: this.getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to load landlords');
@@ -255,7 +272,7 @@ class ApiService {
   }
 
   async adminSuspendLandlord(orgId: string, reason?: string): Promise<any> {
-    const res = await fetch(`/api/admin/landlords/${orgId}/suspend`, {
+    const res = await fetch(this.getApiUrl(`/api/admin/landlords/${orgId}/suspend`), {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({ reason }),
@@ -265,7 +282,7 @@ class ApiService {
   }
 
   async adminActivateLandlord(orgId: string): Promise<any> {
-    const res = await fetch(`/api/admin/landlords/${orgId}/activate`, {
+    const res = await fetch(this.getApiUrl(`/api/admin/landlords/${orgId}/activate`), {
       method: 'POST',
       headers: this.getHeaders(),
     });
