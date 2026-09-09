@@ -1,4 +1,5 @@
 import { dbStore } from '../lib/store';
+import { supabaseService } from './supabaseService';
 import {
   LandlordAccount,
   PlatformMetrics,
@@ -14,6 +15,8 @@ export const adminService = {
   },
 
   async getLandlordAccounts(): Promise<LandlordAccount[]> {
+    const remote = await supabaseService.adminGetLandlords();
+    if (remote && remote.length > 0) return remote;
     return dbStore.getLandlordAccounts();
   },
 
@@ -26,27 +29,38 @@ export const adminService = {
     updates: Partial<LandlordAccount>
   ): Promise<LandlordAccount> {
     const updated = dbStore.updateLandlordSubscription(id, updates);
+    supabaseService.upsertEntity('landlord_accounts', { ...updated, id }).catch(() => {});
     return updated;
   },
 
   async suspendLandlord(id: string, reason: string): Promise<LandlordAccount> {
-    return dbStore.suspendLandlord(id, reason);
+    const updated = dbStore.suspendLandlord(id, reason);
+    await supabaseService.adminSuspendLandlord(id, reason).catch(() => {});
+    return updated;
   },
 
   async reactivateLandlord(id: string): Promise<LandlordAccount> {
-    return dbStore.reactivateLandlord(id);
+    const updated = dbStore.reactivateLandlord(id);
+    await supabaseService.adminActivateLandlord(id).catch(() => {});
+    return updated;
   },
 
   async extendTrial(id: string, daysToAdd: number = 7): Promise<LandlordAccount> {
-    return dbStore.extendTrial(id, daysToAdd);
+    const updated = dbStore.extendTrial(id, daysToAdd);
+    await supabaseService.adminExtendTrial(id, daysToAdd).catch(() => {});
+    return updated;
   },
 
   async changePlan(id: string, tier: PlanTier): Promise<LandlordAccount> {
-    return dbStore.changeLandlordPlan(id, tier);
+    const updated = dbStore.changeLandlordPlan(id, tier);
+    await supabaseService.adminChangePlan(id, tier).catch(() => {});
+    return updated;
   },
 
   async overrideUnitLimit(id: string, customLimit: number): Promise<LandlordAccount> {
-    return dbStore.overrideUnitLimit(id, customLimit);
+    const updated = dbStore.overrideUnitLimit(id, customLimit);
+    await supabaseService.adminOverrideUnitLimit(id, customLimit).catch(() => {});
+    return updated;
   },
 
   async getBillingEvents(): Promise<BillingEvent[]> {

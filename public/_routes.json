@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "include": ["/*"],
+  "exclude": [
+    "/assets/*",
+    "/favicon.png",
+    "/apple-touch-icon.png",
+    "/icon.svg",
+    "/manifest.json",
+    "/pwa-*.png",
+    "/sw.js",
+    "/workbox-*.js"
+  ]
+}

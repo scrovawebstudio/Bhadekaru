@@ -1475,25 +1475,10 @@ class LocalDBStore {
       // ignore
     }
 
-    // Persist to server backend API with debouncing
-    if (this.apiSaveTimer) {
-      clearTimeout(this.apiSaveTimer);
+    // Notify cloudSyncService to schedule debounced push directly to Supabase
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('bhadekaru_db_change', { detail: { state } }));
     }
-    this.apiSaveTimer = setTimeout(() => {
-      const orgId = state.currentOrgId || state.organization.id;
-      if (orgId && state.currentRole === 'landlord') {
-        fetch('/api/data/org', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-org-id': orgId,
-          },
-          body: JSON.stringify({ data: state }),
-        }).catch(() => {
-          // Offline resilience: data already in localStorage & Capacitor preferences
-        });
-      }
-    }, 500);
   }
 
   public getState(): DBState {

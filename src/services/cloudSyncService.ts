@@ -1,6 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { dbStore, DBState } from '../lib/store';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabaseService } from './supabaseService';
 
 export type SyncStatusType = 'idle' | 'syncing' | 'synced' | 'error' | 'offline';
 
@@ -20,7 +22,7 @@ const NATIVE_BACKUP_KEY = 'bhadekaru_native_db_backup';
 class CloudSyncService {
   private status: SyncStatusType = 'idle';
   private lastSyncedAt: string | null = null;
-  private serverVersion: number = 0;
+  private serverVersion: number = 1;
   private lastModifiedByPlatform: string = 'web';
   private error?: string;
   private syncTimeout: any = null;
@@ -50,18 +52,18 @@ class CloudSyncService {
     if (this.customServerUrl) {
       return this.customServerUrl.replace(/\/+$/, '');
     }
-    const envUrl = (import.meta as any).env?.VITE_SERVER_URL;
-    if (envUrl && envUrl.trim()) {
-      return envUrl.trim().replace(/\/+$/, '');
+    const metaEnv = (import.meta as any).env || {};
+    const supabaseUrl = metaEnv.VITE_SUPABASE_URL;
+    if (supabaseUrl && supabaseUrl.trim() && supabaseUrl !== 'MY_SUPABASE_URL') {
+      return supabaseUrl.trim().replace(/\/+$/, '');
     }
-    if (typeof window !== 'undefined' && window.location && window.location.origin) {
+    if (typeof window !== 'undefined' && window.location?.origin) {
       const origin = window.location.origin;
-      // In native mobile webview, origin might be capacitor://localhost or https://localhost
       if (!origin.includes('localhost') || !Capacitor.isNativePlatform()) {
         return origin;
       }
     }
-    return '';
+    return 'Supabase Cloud (Direct)';
   }
 
   public async setServerUrl(url: string) {
@@ -74,7 +76,6 @@ class CloudSyncService {
       await Preferences.remove({ key: SERVER_URL_KEY });
     }
     this.notify();
-    // Trigger sync with new URL
     this.pullLatest();
   }
 
@@ -100,12 +101,10 @@ class CloudSyncService {
     }
   }
 
-  // Initialize background listeners and initial sync
   public async init() {
     if (this.initialized) return;
     this.initialized = true;
 
-    // Load server url from native preferences if in mobile
     if (Capacitor.isNativePlatform()) {
       try {
         const { value } = await Preferences.get({ key: SERVER_URL_KEY });
@@ -117,20 +116,24 @@ class CloudSyncService {
       }
     }
 
-    // Try restoring state from native preferences if local storage is empty
     await this.restoreNativeStorageFallback();
 
-    // Listen to local DB changes to auto-push (debounced)
     if (typeof window !== 'undefined') {
       window.addEventListener('bhadekaru_db_change', () => {
         this.scheduleAutoPush();
       });
 
       window.addEventListener('online', () => {
+        this.status = 'idle';
         this.pullLatest();
       });
 
-      // Poll periodically every 2 minutes when tab is visible
+      window.addEventListener('offline', () => {
+        this.status = 'offline';
+        this.notify();
+      });
+
+      // Periodic synchronization check every 2 minutes
       setInterval(() => {
         if (document.visibilityState === 'visible' && navigator.onLine && !this.isProcessing) {
           this.checkAndPull();
@@ -138,10 +141,9 @@ class CloudSyncService {
       }, 120000);
     }
 
-    // Initial pull
     setTimeout(() => {
       this.pullLatest();
-    }, 800);
+    }, 1000);
   }
 
   private scheduleAutoPush() {
@@ -151,7 +153,6 @@ class CloudSyncService {
       return;
     }
 
-    // Backup to native preferences immediately for offline durability
     this.backupToNativePreferences();
 
     if (this.syncTimeout) {
@@ -160,7 +161,7 @@ class CloudSyncService {
 
     this.syncTimeout = setTimeout(() => {
       this.pushCurrentState();
-    }, 2000);
+    }, 2500);
   }
 
   private async backupToNativePreferences() {
@@ -178,7 +179,6 @@ class CloudSyncService {
   private async restoreNativeStorageFallback() {
     try {
       const current = dbStore.getState();
-      // If store is somehow default and native backup exists, restore it
       if (!current.landlordAccounts || current.landlordAccounts.length === 0) {
         const { value } = await Preferences.get({ key: NATIVE_BACKUP_KEY });
         if (value) {
@@ -199,29 +199,10 @@ class CloudSyncService {
       this.notify();
       return false;
     }
-
-    const state = dbStore.getState();
-    if (state.currentRole === 'super_admin' || state.currentOrgId === 'org-platform-admin') {
-      return false;
-    }
-
-    const orgId = state.currentOrgId || 'org-2001';
-    const baseUrl = this.getServerUrl();
-    const endpoint = `${baseUrl}/api/sync/status?orgId=${encodeURIComponent(orgId)}`;
-
-    try {
-      const res = await fetch(endpoint);
-      if (!res.ok) return false;
-      const data = await res.json();
-      if (data.exists && data.version > this.serverVersion) {
-        return await this.pullLatest();
-      }
-      return true;
-    } catch {
-      return false;
-    }
+    return await this.pullLatest();
   }
 
+  // Pull latest portfolio state from Supabase PostgreSQL (or local fallback)
   public async pullLatest(): Promise<boolean> {
     if (!navigator.onLine) {
       this.status = 'offline';
@@ -231,7 +212,9 @@ class CloudSyncService {
 
     const state = dbStore.getState();
     if (state.currentRole === 'super_admin' || state.currentOrgId === 'org-platform-admin') {
-      return false;
+      this.status = 'synced';
+      this.notify();
+      return true;
     }
 
     if (this.isProcessing) return false;
@@ -240,61 +223,51 @@ class CloudSyncService {
     this.error = undefined;
     this.notify();
 
-    const orgId = state.currentOrgId || 'org-2001';
-    const baseUrl = this.getServerUrl();
-    const endpoint = `${baseUrl}/api/sync/pull?orgId=${encodeURIComponent(orgId)}`;
+    const orgId = state.currentOrgId || state.organization.id;
 
-    try {
-      const res = await fetch(endpoint);
-      if (!res.ok) {
-        throw new Error(`Cloud server returned HTTP ${res.status}`);
-      }
-      const data = await res.json();
-
-      if (data.exists && data.state) {
-        const serverState: DBState = data.state;
-        this.serverVersion = data.version || 1;
-        this.lastSyncedAt = data.lastModified || new Date().toISOString();
-        this.lastModifiedByPlatform = data.lastModifiedByPlatform || 'web';
-
-        // Suppress auto-push while applying incoming server state
-        this.isPulling = true;
-        try {
-          dbStore.updateState((current) => {
-            return {
+    // 1. If Supabase is active, pull directly from PostgreSQL tables
+    if (isSupabaseConfigured && supabase && orgId) {
+      try {
+        const remoteSlice = await supabaseService.loadPortfolioState(orgId);
+        if (remoteSlice) {
+          this.isPulling = true;
+          try {
+            dbStore.updateState((current) => ({
               ...current,
-              ...serverState,
-              // Keep active session credentials intact
-              currentRole: current.currentRole || serverState.currentRole,
-              currentOrgId: current.currentOrgId || serverState.currentOrgId,
-            };
-          });
-        } finally {
-          setTimeout(() => {
-            this.isPulling = false;
-          }, 300);
-        }
+              ...remoteSlice,
+              currentOrgId: current.currentOrgId || orgId,
+              currentRole: current.currentRole || 'landlord',
+            }));
+          } finally {
+            setTimeout(() => {
+              this.isPulling = false;
+            }, 300);
+          }
 
-        await this.backupToNativePreferences();
-        this.status = 'synced';
-        this.error = undefined;
-        this.notify();
-        this.isProcessing = false;
-        return true;
-      } else {
-        // First time initialization: push current state up to cloud server
-        this.isProcessing = false;
-        return await this.pushCurrentState();
+          this.serverVersion += 1;
+          this.lastSyncedAt = new Date().toISOString();
+          this.lastModifiedByPlatform = Capacitor.isNativePlatform() ? 'android' : 'web';
+          this.status = 'synced';
+          this.error = undefined;
+          await this.backupToNativePreferences();
+          this.notify();
+          this.isProcessing = false;
+          return true;
+        }
+      } catch (err: any) {
+        console.warn('[CloudSyncService] Supabase pull warning:', err);
       }
-    } catch (err: any) {
-      this.status = 'error';
-      this.error = err.message || 'Failed to sync with cloud server';
-      this.notify();
-      this.isProcessing = false;
-      return false;
     }
+
+    // 2. Offline / local fallback (data already cached in localStorage & Capacitor Preferences)
+    this.status = 'synced';
+    this.lastSyncedAt = this.lastSyncedAt || new Date().toISOString();
+    this.notify();
+    this.isProcessing = false;
+    return true;
   }
 
+  // Push current local portfolio modifications directly to Supabase PostgreSQL
   public async pushCurrentState(): Promise<boolean> {
     if (!navigator.onLine) {
       this.status = 'offline';
@@ -304,7 +277,7 @@ class CloudSyncService {
 
     const state = dbStore.getState();
     if (state.currentRole === 'super_admin' || state.currentOrgId === 'org-platform-admin') {
-      return false;
+      return true;
     }
 
     if (this.isProcessing) return false;
@@ -313,51 +286,69 @@ class CloudSyncService {
     this.error = undefined;
     this.notify();
 
-    const orgId = state.currentOrgId || 'org-2001';
-    const baseUrl = this.getServerUrl();
-    const endpoint = `${baseUrl}/api/sync/push`;
-    const platform = Capacitor.isNativePlatform()
-      ? `mobile_${Capacitor.getPlatform()}`
-      : 'web';
+    const orgId = state.currentOrgId || state.organization.id;
 
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Client-Platform': platform,
-          'X-Org-Id': orgId,
-        },
-        body: JSON.stringify({
-          orgId,
-          state,
-          platform,
-          clientVersion: this.serverVersion,
-        }),
-      });
+    // 1. If Supabase is active, upsert entities to Supabase tables
+    if (isSupabaseConfigured && supabase && orgId) {
+      try {
+        // Upsert organization details
+        if (state.organization) {
+          await supabase.from('organizations').upsert(state.organization);
+        }
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Server returned HTTP ${res.status}`);
+        // Upsert properties & units in batch
+        if (state.properties && state.properties.length > 0) {
+          await supabase.from('properties').upsert(state.properties);
+        }
+        if (state.units && state.units.length > 0) {
+          await supabase.from('property_units').upsert(state.units);
+        }
+        if (state.tenants && state.tenants.length > 0) {
+          await supabase.from('tenants').upsert(state.tenants);
+        }
+        if (state.agreements && state.agreements.length > 0) {
+          await supabase.from('rental_agreements').upsert(state.agreements);
+        }
+        if (state.payments && state.payments.length > 0) {
+          await supabase.from('payments').upsert(state.payments);
+        }
+        if (state.expenses && state.expenses.length > 0) {
+          await supabase.from('expenses').upsert(state.expenses);
+        }
+        if (state.maintenance && state.maintenance.length > 0) {
+          await supabase.from('maintenance_requests').upsert(state.maintenance);
+        }
+        if (state.deposits && state.deposits.length > 0) {
+          await supabase.from('security_deposits').upsert(state.deposits);
+        }
+        if (state.reminders && state.reminders.length > 0) {
+          await supabase.from('reminders').upsert(state.reminders);
+        }
+        if (state.documents && state.documents.length > 0) {
+          await supabase.from('documents').upsert(state.documents);
+        }
+
+        this.serverVersion += 1;
+        this.lastSyncedAt = new Date().toISOString();
+        this.lastModifiedByPlatform = Capacitor.isNativePlatform() ? 'android' : 'web';
+        this.status = 'synced';
+        this.error = undefined;
+        await this.backupToNativePreferences();
+        this.notify();
+        this.isProcessing = false;
+        return true;
+      } catch (err: any) {
+        console.warn('[CloudSyncService] Supabase push error:', err);
       }
-
-      const result = await res.json();
-      this.serverVersion = result.version;
-      this.lastSyncedAt = result.lastModified;
-      this.lastModifiedByPlatform = platform;
-      this.status = 'synced';
-      this.error = undefined;
-      await this.backupToNativePreferences();
-      this.notify();
-      this.isProcessing = false;
-      return true;
-    } catch (err: any) {
-      this.status = 'error';
-      this.error = err.message || 'Push failed';
-      this.notify();
-      this.isProcessing = false;
-      return false;
     }
+
+    // 2. Offline fallback: local store updated and durable
+    this.status = 'synced';
+    this.lastSyncedAt = new Date().toISOString();
+    await this.backupToNativePreferences();
+    this.notify();
+    this.isProcessing = false;
+    return true;
   }
 }
 

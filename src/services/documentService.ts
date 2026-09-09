@@ -1,4 +1,6 @@
 import { dbStore } from '../lib/store';
+import { supabaseService } from './supabaseService';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { AppDocument, Reminder, DocumentCategory, AppNotification } from '../types/database.types';
 
 export const documentService = {
@@ -14,11 +16,33 @@ export const documentService = {
     file_name: string;
     file_size_bytes?: number;
     mime_type?: string;
+    storage_path?: string;
   }): Promise<AppDocument> {
-    return dbStore.createDocument({
+    const doc = dbStore.createDocument({
       ...payload,
-      storage_path: `/vault/${payload.file_name}`,
+      storage_path: payload.storage_path || `/vault/${payload.file_name}`,
     });
+
+    if (isSupabaseConfigured && supabase) {
+      supabaseService.upsertEntity('documents', doc).catch(() => {});
+    }
+
+    return doc;
+  },
+
+  async uploadFileToStorage(file: File | Blob, fileName: string, folder: string = 'vault'): Promise<string> {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const cleanName = `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const path = `${folder}/${cleanName}`;
+        const res = await supabaseService.uploadFileToStorage('vault', path, file);
+        if (res?.publicUrl) return res.publicUrl;
+        if (res?.path) return res.path;
+      } catch (err) {
+        console.warn('[documentService] Storage upload fallback:', err);
+      }
+    }
+    return `/vault/${fileName}`;
   },
 };
 
