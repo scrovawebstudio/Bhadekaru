@@ -294,7 +294,8 @@ app.post('/api/auth/login', (req, res) => {
 
 // Legacy Admin Login backward compatibility
 app.post('/api/admin/login', (req, res) => {
-  const { identifier, password } = req.body || {};
+  const identifier = req.body?.identifier || req.body?.phone || req.body?.email;
+  const password = req.body?.password;
   if (!identifier || !password) {
     return res.status(400).json({ error: 'Identifier and password are required' });
   }
@@ -608,6 +609,80 @@ app.post('/api/admin/landlords/:id/activate', (req, res) => {
   saveAllLandlords(landlords);
 
   return res.json({ success: true, message: 'Landlord account activated successfully', landlord: target });
+});
+
+// Extend trial for a landlord account
+app.post('/api/admin/landlords/:id/extend-trial', (req, res) => {
+  const token = getRequestToken(req);
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  const session = getSession(token);
+  if (!session || session.role !== 'super_admin') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const orgId = req.params.id;
+  const { days = 7 } = req.body || {};
+  const landlords = getAllLandlords();
+  const target = landlords.find((l) => l.id === orgId);
+  if (!target) return res.status(404).json({ error: 'Landlord not found' });
+
+  const currentEnd = target.trial_end ? new Date(target.trial_end).getTime() : Date.now();
+  const newDate = new Date(Math.max(Date.now(), currentEnd) + Number(days) * 86400000).toISOString();
+  target.trial_end = newDate;
+  target.current_period_end = newDate;
+  target.status = 'trialing';
+  target.updated_at = new Date().toISOString();
+  saveAllLandlords(landlords);
+
+  return res.json({ success: true, message: `Extended trial by ${days} days`, landlord: target });
+});
+
+// Change plan tier for a landlord account
+app.post('/api/admin/landlords/:id/plan', (req, res) => {
+  const token = getRequestToken(req);
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  const session = getSession(token);
+  if (!session || session.role !== 'super_admin') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const orgId = req.params.id;
+  const { planTier } = req.body || {};
+  if (!planTier) return res.status(400).json({ error: 'planTier is required' });
+
+  const landlords = getAllLandlords();
+  const target = landlords.find((l) => l.id === orgId);
+  if (!target) return res.status(404).json({ error: 'Landlord not found' });
+
+  target.plan_tier = planTier;
+  target.updated_at = new Date().toISOString();
+  saveAllLandlords(landlords);
+
+  return res.json({ success: true, message: `Plan updated to ${planTier}`, landlord: target });
+});
+
+// Override unit limit for a landlord account
+app.post('/api/admin/landlords/:id/unit-limit', (req, res) => {
+  const token = getRequestToken(req);
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  const session = getSession(token);
+  if (!session || session.role !== 'super_admin') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const orgId = req.params.id;
+  const { customLimit } = req.body || {};
+  if (customLimit === undefined) return res.status(400).json({ error: 'customLimit is required' });
+
+  const landlords = getAllLandlords();
+  const target = landlords.find((l) => l.id === orgId);
+  if (!target) return res.status(404).json({ error: 'Landlord not found' });
+
+  target.custom_unit_limit = Number(customLimit);
+  target.updated_at = new Date().toISOString();
+  saveAllLandlords(landlords);
+
+  return res.json({ success: true, message: `Custom unit limit set to ${customLimit}`, landlord: target });
 });
 
 async function startServer() {

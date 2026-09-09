@@ -1,0 +1,33 @@
+{
+  "organization": {
+    "id": "org-1788959851858",
+    "name": "Probe Landlord's Portfolio",
+    "owner_id": "usr-1788959851858",
+    "currency": "INR",
+    "timezone": "Asia/Kolkata",
+    "onboarding_completed": false,
+    "onboarding_units_managed": "0",
+    "onboarding_property_types": [],
+    "created_at": "2026-09-09T13:17:31.859Z",
+    "updated_at": "2026-09-09T13:17:31.859Z"
+  },
+  "profile": {
+    "id": "usr-1788959851858",
+    "full_name": "Probe Landlord",
+    "email": "landlord_1788959851858@bhadekaru.app",
+    "phone": "+91 98230 77777",
+    "avatar_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+    "created_at": "2026-09-09T13:17:31.859Z",
+    "updated_at": "2026-09-09T13:17:31.859Z"
+  },
+  "properties": [],
+  "units": [],
+  "tenants": [],
+  "payments": [],
+  "agreements": [],
+  "expenses": [],
+  "maintenance": [],
+  "documents": [],
+  "reminders": [],
+  "deposits": []
+}

@@ -22,5 +22,89 @@
     "organizationName": "Bhadekaru Platform Governance",
     "createdAt": "2026-09-08T08:52:49.256Z",
     "expiresAt": "2027-09-08T08:52:49.256Z"
+  },
+  "bhk_73f25323417d8be8330edaad2a59d00ff9f38cc8d1992257d580f391cbeb7047": {
+    "token": "bhk_73f25323417d8be8330edaad2a59d00ff9f38cc8d1992257d580f391cbeb7047",
+    "userId": "usr-1788959851858",
+    "email": "landlord_1788959851858@bhadekaru.app",
+    "phone": "+91 98230 77777",
+    "fullName": "Probe Landlord",
+    "role": "landlord",
+    "organizationId": "org-1788959851858",
+    "organizationName": "Probe Landlord's Portfolio",
+    "createdAt": "2026-09-09T13:17:31.859Z",
+    "expiresAt": "2027-09-09T13:17:31.859Z"
+  },
+  "bhk_f193da9cf1ac6ad0fcad4e8d936953366e46d31d4e35813a66f87d5ef62f0eb7": {
+    "token": "bhk_f193da9cf1ac6ad0fcad4e8d936953366e46d31d4e35813a66f87d5ef62f0eb7",
+    "userId": "usr-1788861361256",
+    "email": "sujit@gmail.com",
+    "phone": "8796751997",
+    "fullName": "Sujit",
+    "role": "landlord",
+    "organizationId": "org-1788861361256",
+    "organizationName": "SG Estates",
+    "createdAt": "2026-09-09T13:27:18.521Z",
+    "expiresAt": "2027-09-09T13:27:18.521Z"
+  },
+  "bhk_045899f3a8ce7cc6ee3e26f6f652497e347b4063133d3231a165a96ada5624b2": {
+    "token": "bhk_045899f3a8ce7cc6ee3e26f6f652497e347b4063133d3231a165a96ada5624b2",
+    "userId": "usr-1788861361256",
+    "email": "sujit@gmail.com",
+    "phone": "8796751997",
+    "fullName": "Sujit",
+    "role": "landlord",
+    "organizationId": "org-1788861361256",
+    "organizationName": "SG Estates",
+    "createdAt": "2026-09-09T13:28:01.094Z",
+    "expiresAt": "2027-09-09T13:28:01.094Z"
+  },
+  "bhk_774a7a9659fbfb8c9d2059089cb86b51f5023042edb9493279b69b4a7d9537e0": {
+    "token": "bhk_774a7a9659fbfb8c9d2059089cb86b51f5023042edb9493279b69b4a7d9537e0",
+    "userId": "usr-1788861361256",
+    "email": "sujit@gmail.com",
+    "phone": "8796751997",
+    "fullName": "Sujit",
+    "role": "landlord",
+    "organizationId": "org-1788861361256",
+    "organizationName": "SG Estates",
+    "createdAt": "2026-09-09T13:29:01.983Z",
+    "expiresAt": "2027-09-09T13:29:01.983Z"
+  },
+  "bhk_1a41dab2442123930fc4b38184616079e3fc695018efb52d8dded36af2f6d9f9": {
+    "token": "bhk_1a41dab2442123930fc4b38184616079e3fc695018efb52d8dded36af2f6d9f9",
+    "userId": "usr-1788861361256",
+    "email": "sujit@gmail.com",
+    "phone": "8796751997",
+    "fullName": "Sujit",
+    "role": "landlord",
+    "organizationId": "org-1788861361256",
+    "organizationName": "SG Estates",
+    "createdAt": "2026-09-09T13:29:30.452Z",
+    "expiresAt": "2027-09-09T13:29:30.452Z"
+  },
+  "bhk_af7630460cac3a9ed9dc79ed3f104ce14db87eb56cee4d0cb9d237f665d00922": {
+    "token": "bhk_af7630460cac3a9ed9dc79ed3f104ce14db87eb56cee4d0cb9d237f665d00922",
+    "userId": "usr-super-admin",
+    "email": "sujitgajare@gmail.com",
+    "phone": "8149862034",
+    "fullName": "Super Admin",
+    "role": "super_admin",
+    "organizationId": "org-platform-admin",
+    "organizationName": "Bhadekaru SaaS Platform Governance",
+    "createdAt": "2026-09-09T13:29:30.457Z",
+    "expiresAt": "2027-09-09T13:29:30.457Z"
+  },
+  "bhk_a688dda4f13c1c8796f79f650c60e1eb7dac5918511803ed20a28bcabba78059": {
+    "token": "bhk_a688dda4f13c1c8796f79f650c60e1eb7dac5918511803ed20a28bcabba78059",
+    "userId": "usr-1788960577406",
+    "email": "testlandlord1788960577284@test.com",
+    "phone": "913613129850",
+    "fullName": "Automated Tester",
+    "role": "landlord",
+    "organizationId": "org-1788960577406",
+    "organizationName": "Tester Properties Ltd",
+    "createdAt": "2026-09-09T13:29:37.406Z",
+    "expiresAt": "2027-09-09T13:29:37.406Z"
   }
 }
