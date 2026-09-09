@@ -116,6 +116,16 @@ export const TenantProfilePage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {!tenant.current_unit_number && (
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Building2 className="w-4 h-4" />}
+                onClick={() => navigate(`/agreements?action=create&tenantId=${tenant.id}`)}
+              >
+                Assign to Unit
+              </Button>
+            )}
             <Button
               variant="primary"
               size="sm"
@@ -207,7 +217,18 @@ export const TenantProfilePage: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-slate-500">Tenant is not actively assigned to a unit.</p>
+                <div className="space-y-3">
+                  <p className="text-xs text-slate-500">Tenant is not actively assigned to a unit.</p>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    className="w-full"
+                    leftIcon={<Building2 className="w-3.5 h-3.5" />}
+                    onClick={() => navigate(`/agreements?action=create&tenantId=${tenant.id}`)}
+                  >
+                    Assign to Property & Unit
+                  </Button>
+                </div>
               )}
             </Card>
 

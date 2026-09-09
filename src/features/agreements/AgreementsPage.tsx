@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { agreementService } from '../../services/agreementService';
 import { propertyService } from '../../services/propertyService';
 import { tenantService } from '../../services/tenantService';
@@ -12,14 +13,24 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { formatINR, formatDate } from '../../lib/utils';
 import { useToast } from '../../components/feedback/Toast';
 
-export const AddAgreementModal: React.FC<{ isOpen: boolean; onClose: () => void; onSubmit: (data: any) => Promise<void> }> = ({
+export const AddAgreementModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: any) => Promise<void>;
+  initialPropertyId?: string;
+  initialUnitId?: string;
+  initialTenantId?: string;
+}> = ({
   isOpen,
   onClose,
   onSubmit,
+  initialPropertyId = '',
+  initialUnitId = '',
+  initialTenantId = '',
 }) => {
-  const [propertyId, setPropertyId] = useState('');
-  const [unitId, setUnitId] = useState('');
-  const [tenantId, setTenantId] = useState('');
+  const [propertyId, setPropertyId] = useState(initialPropertyId);
+  const [unitId, setUnitId] = useState(initialUnitId);
+  const [tenantId, setTenantId] = useState(initialTenantId);
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(
     new Date(Date.now() + 330 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -31,6 +42,12 @@ export const AddAgreementModal: React.FC<{ isOpen: boolean; onClose: () => void;
   const [noticePeriodDays, setNoticePeriodDays] = useState('30');
   const [policeVerificationDone, setPoliceVerificationDone] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (initialPropertyId) setPropertyId(initialPropertyId);
+    if (initialUnitId) setUnitId(initialUnitId);
+    if (initialTenantId) setTenantId(initialTenantId);
+  }, [initialPropertyId, initialUnitId, initialTenantId, isOpen]);
 
   const { data: properties = [] } = useQuery({
     queryKey: ['properties'],
@@ -44,6 +61,25 @@ export const AddAgreementModal: React.FC<{ isOpen: boolean; onClose: () => void;
 
   const selectedProperty = properties.find((p) => p.id === propertyId);
   const availableUnits = selectedProperty?.units || [];
+
+  useEffect(() => {
+    if (unitId && availableUnits.length > 0 && !monthlyRent) {
+      const u = availableUnits.find((x) => x.id === unitId);
+      if (u?.monthly_rent) {
+        setMonthlyRent(String(u.monthly_rent));
+        setSecurityDeposit(String(Number(u.monthly_rent) * 3));
+      }
+    }
+  }, [unitId, availableUnits]);
+
+  const handleUnitChange = (selectedUid: string) => {
+    setUnitId(selectedUid);
+    const u = availableUnits.find((x) => x.id === selectedUid);
+    if (u?.monthly_rent) {
+      setMonthlyRent(String(u.monthly_rent));
+      setSecurityDeposit(String(Number(u.monthly_rent) * 3));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,7 +120,7 @@ export const AddAgreementModal: React.FC<{ isOpen: boolean; onClose: () => void;
             ))}
           </Select>
 
-          <Select label="Unit / Flat *" value={unitId} onChange={(e) => setUnitId(e.target.value)} required>
+          <Select label="Unit / Flat *" value={unitId} onChange={(e) => handleUnitChange(e.target.value)} required>
             <option value="">-- Select Unit --</option>
             {availableUnits.map((u) => (
               <option key={u.id} value={u.id}>
@@ -146,10 +182,22 @@ export const AddAgreementModal: React.FC<{ isOpen: boolean; onClose: () => void;
 };
 
 export const AgreementsPage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialPropertyId = searchParams.get('propertyId') || '';
+  const initialUnitId = searchParams.get('unitId') || '';
+  const initialTenantId = searchParams.get('tenantId') || '';
+  const shouldAutoOpen = searchParams.get('action') === 'create' || Boolean(initialPropertyId || initialUnitId || initialTenantId);
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(shouldAutoOpen);
   const queryClient = useQueryClient();
   const toast = useToast();
+
+  useEffect(() => {
+    if (shouldAutoOpen) {
+      setAddModalOpen(true);
+    }
+  }, [shouldAutoOpen]);
 
   const { data: agreements = [], isLoading } = useQuery({
     queryKey: ['agreements'],
@@ -283,9 +331,20 @@ export const AgreementsPage: React.FC = () => {
       {/* Add Agreement Modal */}
       <AddAgreementModal
         isOpen={addModalOpen}
-        onClose={() => setAddModalOpen(false)}
+        initialPropertyId={initialPropertyId}
+        initialUnitId={initialUnitId}
+        initialTenantId={initialTenantId}
+        onClose={() => {
+          setAddModalOpen(false);
+          if (searchParams.get('action') || searchParams.get('propertyId') || searchParams.get('unitId') || searchParams.get('tenantId')) {
+            setSearchParams({});
+          }
+        }}
         onSubmit={async (data) => {
           await createAgreementMutation.mutateAsync(data);
+          if (searchParams.get('action') || searchParams.get('propertyId') || searchParams.get('unitId') || searchParams.get('tenantId')) {
+            setSearchParams({});
+          }
         }}
       />
     </div>

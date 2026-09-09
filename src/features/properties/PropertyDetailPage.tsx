@@ -20,7 +20,8 @@ import {
   DoorOpen,
   CheckCircle2,
   Clock,
-  Car
+  Car,
+  UserPlus
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -206,8 +207,15 @@ export const PropertyDetailPage: React.FC = () => {
                         <p className="text-[11px] text-slate-500">{unit.active_tenant.phone}</p>
                       </div>
                     ) : (
-                      <div className="p-2.5 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-center mb-3">
-                        <span className="text-xs text-slate-400 font-medium">No active tenant</span>
+                      <div className="p-3 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-center mb-3">
+                        <span className="text-xs text-slate-500 font-medium block mb-2">Vacant (No active tenant)</span>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/agreements?action=create&propertyId=${property.id}&unitId=${unit.id}`)}
+                          className="w-full py-1.5 px-3 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 hover:text-sky-800 rounded-lg flex items-center justify-center gap-1.5 transition-colors border border-sky-200/80"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" /> Assign Tenant
+                        </button>
                       </div>
                     )}
                   </div>
